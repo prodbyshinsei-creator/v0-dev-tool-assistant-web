@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Header } from '@/components/header';
-import { mockVolumeWallets, shortenAddress } from '@/lib/mock-data';
+import { useWalletStore, shortenAddress } from '@/lib/wallet-store';
 import { cn } from '@/lib/utils';
 
 interface VolumePanelProps {
@@ -24,6 +24,7 @@ const modeConfig = {
 };
 
 export function VolumePanel({ onBack }: VolumePanelProps) {
+  const { wallets } = useWalletStore();
   const [tokenCA, setTokenCA] = useState('');
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [mode, setMode] = useState<VolumeMode>('classic');
@@ -40,10 +41,10 @@ export function VolumePanel({ onBack }: VolumePanelProps) {
   };
 
   const selectAll = () => {
-    if (selectedWallets.length === mockVolumeWallets.length) {
+    if (selectedWallets.length === wallets.length) {
       setSelectedWallets([]);
     } else {
-      setSelectedWallets(mockVolumeWallets.map((w) => w.id));
+      setSelectedWallets(wallets.map((w) => w.id));
     }
   };
 
@@ -128,11 +129,11 @@ export function VolumePanel({ onBack }: VolumePanelProps) {
                   disabled={status !== 'idle'}
                   className="text-xs text-volume-blue hover:text-volume-blue-glow"
                 >
-                  {selectedWallets.length === mockVolumeWallets.length ? 'Deselect All' : 'Select All'}
+                  {selectedWallets.length === wallets.length ? 'Deselect All' : 'Select All'}
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {mockVolumeWallets.map((wallet) => (
+                {wallets.map((wallet) => (
                   <label
                     key={wallet.id}
                     className={cn(
@@ -150,13 +151,13 @@ export function VolumePanel({ onBack }: VolumePanelProps) {
                       className="data-[state=checked]:bg-volume-blue data-[state=checked]:border-volume-blue"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{wallet.name}</div>
+                      <div className="text-sm font-medium truncate">{wallet.label}</div>
                       <div className="text-xs text-muted-foreground font-mono">
-                        {shortenAddress(wallet.address)}
+                        {shortenAddress(wallet.publicKey)}
                       </div>
                     </div>
                     <div className="text-xs text-volume-blue font-mono">
-                      {wallet.balance.toFixed(2)}
+                      {wallet.balance?.toFixed(2) ?? '0.00'}
                     </div>
                   </label>
                 ))}
