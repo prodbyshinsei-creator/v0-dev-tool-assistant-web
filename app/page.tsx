@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Skull, Activity, Wallet } from 'lucide-react';
 import { Header } from '@/components/header';
 import { ToolCard } from '@/components/tool-card';
 import { VampPanel } from '@/components/vamp-panel';
@@ -35,21 +34,21 @@ export default function Home() {
             <ToolCard
               title="VAMP"
               description="Token launcher with dev buy"
-              icon={Skull}
+              imageUrl="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/chrome-vampire-fangs_913262-152-CMgF3bACMdpqgcYjajL4kWgqlTq67j.png"
               variant="vamp"
               onClick={() => setActivePanel('vamp')}
             />
             <ToolCard
               title="Volume Bot"
               description="Automated volume generation"
-              icon={Activity}
+              imageUrl="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/trading-red-and-green-candle-stick-graph-isolated-on-transparent-background-png-w2ZtzA51FIXIBLeT8bYgS8q3hU6ZsC.webp"
               variant="volume"
               onClick={() => setActivePanel('volume')}
             />
             <ToolCard
               title="Wallets"
               description="Manage your wallets"
-              icon={Wallet}
+              imageUrl="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Wallet_App_icon_iOS_12-rMzcP44YRCtQOzNNDDbSKicrKLqAOe.png"
               variant="wallet"
               onClick={() => setActivePanel('wallets')}
             />
