@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Rocket, Trash2, Loader2, Twitter, Send, Globe } from 'lucide-react';
+import { Rocket, Trash2, Loader2, Twitter, Send, Globe, Wallet, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Header } from '@/components/header';
-import {
-  mockDevWallets,
-  mockLaunchedTokens,
-  LaunchedToken,
-  shortenAddress,
-  formatMarketCap,
-  generateSolanaAddress,
-} from '@/lib/mock-data';
+import { useWalletStore, shortenAddress } from '@/lib/wallet-store';
+import { formatMarketCap, generateSolanaAddress, LaunchedToken } from '@/lib/mock-data';
 
 interface VampPanelProps {
   onBack: () => void;
@@ -51,17 +45,29 @@ const fetchTokenMetadata = async (ca: string): Promise<TokenMetadata> => {
 };
 
 export function VampPanel({ onBack }: VampPanelProps) {
+  const { wallets, isLoaded } = useWalletStore();
+  
   const [tokenCA, setTokenCA] = useState('');
   const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   
-  const [selectedWallet, setSelectedWallet] = useState('');
+  const [selectedWalletId, setSelectedWalletId] = useState('');
   const [launchCount, setLaunchCount] = useState('1');
   const [devBuyAmount, setDevBuyAmount] = useState('');
   const [customAmount, setCustomAmount] = useState('');
-  const [launchedTokens, setLaunchedTokens] = useState<LaunchedToken[]>(mockLaunchedTokens);
+  const [launchedTokens, setLaunchedTokens] = useState<LaunchedToken[]>([]);
   const [isLaunching, setIsLaunching] = useState(false);
+
+  // Get selected wallet details
+  const selectedWallet = wallets.find((w) => w.id === selectedWalletId);
+
+  // Auto-select first wallet if none selected
+  useEffect(() => {
+    if (isLoaded && wallets.length > 0 && !selectedWalletId) {
+      setSelectedWalletId(wallets[0].id);
+    }
+  }, [isLoaded, wallets, selectedWalletId]);
 
   // Auto-fetch when CA is pasted (detect full address)
   useEffect(() => {
@@ -99,7 +105,7 @@ export function VampPanel({ onBack }: VampPanelProps) {
   };
 
   const handleLaunch = () => {
-    if (!tokenCA || !selectedWallet || !tokenMetadata) return;
+    if (!tokenCA || !selectedWalletId || !tokenMetadata) return;
     
     setIsLaunching(true);
     setTimeout(() => {
@@ -131,11 +137,26 @@ export function VampPanel({ onBack }: VampPanelProps) {
     setFetchError(null);
   };
 
+  const actualDevBuy = customAmount || devBuyAmount || '0';
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header title="VAMP" showBack onBack={onBack} variant="vamp" />
       
       <main className="flex-1 container max-w-xl mx-auto px-4 py-6 space-y-4">
+        {/* No Wallets Warning */}
+        {isLoaded && wallets.length === 0 && (
+          <div className="p-4 rounded-lg border border-vamp-red/30 bg-vamp-red/5 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-vamp-red flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-vamp-red">No wallets available</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Go to Wallets to generate or import a wallet before launching tokens.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* CA Input - Always visible */}
         <section className="p-4 rounded-lg border border-vamp-red/30 bg-card">
           <div className="flex items-center gap-2 text-vamp-red mb-3">
@@ -247,19 +268,38 @@ export function VampPanel({ onBack }: VampPanelProps) {
         )}
 
         {/* Launch Controls - Shows after token is loaded */}
-        {tokenMetadata && !isFetching && (
+        {tokenMetadata && !isFetching && wallets.length > 0 && (
           <section className="p-4 rounded-lg border border-vamp-red/20 bg-card space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 delay-100">
             <div className="grid grid-cols-2 gap-3">
+              {/* Wallet Selector */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Wallet</Label>
-                <Select value={selectedWallet} onValueChange={setSelectedWallet}>
+                <Select value={selectedWalletId} onValueChange={setSelectedWalletId}>
                   <SelectTrigger className="bg-input border-border h-9 text-sm">
-                    <SelectValue placeholder="Select" />
+                    <SelectValue placeholder="Select wallet">
+                      {selectedWallet && (
+                        <span className="flex items-center gap-2">
+                          <Wallet className="w-3 h-3 text-wallet-green" />
+                          <span className="truncate">{selectedWallet.label}</span>
+                          <span className="text-muted-foreground text-xs">
+                            ({selectedWallet.balance.toFixed(2)})
+                          </span>
+                        </span>
+                      )}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {mockDevWallets.map((wallet) => (
+                    {wallets.map((wallet) => (
                       <SelectItem key={wallet.id} value={wallet.id}>
-                        {wallet.name} ({wallet.balance.toFixed(1)})
+                        <span className="flex items-center gap-2">
+                          <span>{wallet.label}</span>
+                          <span className="text-muted-foreground text-xs">
+                            {shortenAddress(wallet.address)}
+                          </span>
+                          <span className="text-wallet-green text-xs">
+                            {wallet.balance.toFixed(2)} SOL
+                          </span>
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -312,9 +352,25 @@ export function VampPanel({ onBack }: VampPanelProps) {
               </div>
             </div>
 
+            {/* Launch Summary */}
+            {selectedWallet && (
+              <div className="p-2 rounded bg-background/50 border border-border">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Using:</span>
+                  <span className="font-mono">
+                    {selectedWallet.label} ({shortenAddress(selectedWallet.address)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs mt-1">
+                  <span className="text-muted-foreground">Dev Buy:</span>
+                  <span className="font-mono text-vamp-red">{actualDevBuy} SOL</span>
+                </div>
+              </div>
+            )}
+
             <Button
               onClick={handleLaunch}
-              disabled={isLaunching || !selectedWallet}
+              disabled={isLaunching || !selectedWalletId}
               className="w-full bg-vamp-red hover:bg-vamp-red-hover text-foreground font-mono font-bold h-10"
             >
               {isLaunching ? (
