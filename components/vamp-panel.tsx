@@ -27,36 +27,27 @@ interface VampPanelProps {
 }
 
 interface TokenMetadata {
-  image: string;
+  image_url: string;
   name: string;
   ticker: string;
   description: string;
   twitter?: string;
   telegram?: string;
   website?: string;
+  market_cap?: number;
 }
 
 const devBuyPresets = ['0.1', '0.5', '1', '2', '5'];
 
-// Mock fetch function - simulates fetching token metadata
+// Fetch token metadata from API (DexScreener + onchain fallback)
 const fetchTokenMetadata = async (ca: string): Promise<TokenMetadata> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  const response = await fetch(`/api/token/${ca}`);
   
-  // Return mock data based on CA
-  const mockTokens: Record<string, TokenMetadata> = {
-    default: {
-      image: `https://api.dicebear.com/7.x/shapes/svg?seed=${ca.slice(0, 8)}`,
-      name: 'ShadowPepe',
-      ticker: '$SPEPE',
-      description: 'The darkest meme on Solana. Born in shadows, built for gains.',
-      twitter: 'https://twitter.com/shadowpepe',
-      telegram: 'https://t.me/shadowpepe',
-      website: 'https://shadowpepe.io',
-    },
-  };
+  if (!response.ok) {
+    throw new Error('Failed to fetch token data');
+  }
   
-  return mockTokens.default;
+  return response.json();
 };
 
 export function VampPanel({ onBack }: VampPanelProps) {
@@ -192,7 +183,7 @@ export function VampPanel({ onBack }: VampPanelProps) {
               {/* Token Image */}
               <div className="w-16 h-16 rounded-lg overflow-hidden border border-vamp-red/30 bg-background flex-shrink-0">
                 <img
-                  src={tokenMetadata.image}
+                  src={tokenMetadata.image_url}
                   alt={tokenMetadata.name}
                   className="w-full h-full object-cover"
                 />
@@ -200,9 +191,14 @@ export function VampPanel({ onBack }: VampPanelProps) {
               
               {/* Token Info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono font-bold text-foreground">{tokenMetadata.name}</span>
                   <span className="text-vamp-red font-mono text-sm">{tokenMetadata.ticker}</span>
+                  {tokenMetadata.market_cap && (
+                    <span className="text-wallet-green font-mono text-xs">
+                      {formatMarketCap(tokenMetadata.market_cap)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                   {tokenMetadata.description}
