@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Skull, Rocket, Trash2, ExternalLink, Loader2, Twitter, Send, Globe } from 'lucide-react';
+import { Rocket, Trash2, Loader2, Twitter, Send, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -139,8 +139,12 @@ export function VampPanel({ onBack }: VampPanelProps) {
         {/* CA Input - Always visible */}
         <section className="p-4 rounded-lg border border-vamp-red/30 bg-card">
           <div className="flex items-center gap-2 text-vamp-red mb-3">
-            <Skull className="w-4 h-4" />
-            <span className="font-mono text-sm font-bold">Clone Token</span>
+            <img 
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/chrome-vampire-fangs_913262-152-CMgF3bACMdpqgcYjajL4kWgqlTq67j.png" 
+              alt="Vamp"
+              className="w-5 h-5 object-contain"
+            />
+            <span className="font-mono text-sm font-bold">Vamp Token</span>
           </div>
           
           <div className="relative">
@@ -316,12 +320,12 @@ export function VampPanel({ onBack }: VampPanelProps) {
               {isLaunching ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Cloning...
+                  Vamping...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
                   <Rocket className="w-4 h-4" />
-                  CLONE & LAUNCH
+                  VAMP & LAUNCH
                 </span>
               )}
             </Button>
@@ -332,7 +336,14 @@ export function VampPanel({ onBack }: VampPanelProps) {
         {launchedTokens.length > 0 && (
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-sm text-vamp-red">Cloned Tokens</span>
+              <div className="flex items-center gap-2">
+                <img 
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/chrome-vampire-fangs_913262-152-CMgF3bACMdpqgcYjajL4kWgqlTq67j.png" 
+                  alt="Vamped"
+                  className="w-4 h-4 object-contain"
+                />
+                <span className="font-mono text-sm text-vamp-red">Vamped Tokens</span>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
