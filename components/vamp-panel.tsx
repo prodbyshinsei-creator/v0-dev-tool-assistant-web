@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Skull, Rocket, Trash2 } from 'lucide-react';
+import { Skull, Rocket, Trash2, Loader2, Twitter, Send, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,10 +28,24 @@ interface VampPanelProps {
   onBack: () => void;
 }
 
+interface TokenMetadata {
+  name: string;
+  ticker: string;
+  description: string;
+  image_url: string;
+  twitter?: string;
+  telegram?: string;
+  website?: string;
+}
+
 const devBuyPresets = ['0.1', '0.5', '1', '2', '5'];
 
 export function VampPanel({ onBack }: VampPanelProps) {
   const [tokenCA, setTokenCA] = useState('');
+  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
+  const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  
   const [selectedWallet, setSelectedWallet] = useState('');
   const [launchCount, setLaunchCount] = useState('1');
   const [devBuyAmount, setDevBuyAmount] = useState('');
@@ -39,11 +53,10 @@ export function VampPanel({ onBack }: VampPanelProps) {
   const [launchedTokens, setLaunchedTokens] = useState<LaunchedToken[]>([]);
   const [isLaunching, setIsLaunching] = useState(false);
   
-  // Используем mock данные для кошельков пока backend не готов
   const [wallets, setWallets] = useState(mockDevWallets);
   const [isLoadingWallets, setIsLoadingWallets] = useState(false);
 
-  // Загрузка кошельков из API (если backend работает)
+  // Загрузка кошельков из API
   useEffect(() => {
     loadWalletsFromAPI();
   }, []);
@@ -56,7 +69,6 @@ export function VampPanel({ onBack }: VampPanelProps) {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.wallets) {
-          // Преобразуем API данные в формат mock-data
           const apiWallets = data.wallets.map((w: any) => ({
             id: w.id.toString(),
             name: w.name,
@@ -66,7 +78,6 @@ export function VampPanel({ onBack }: VampPanelProps) {
           setWallets(apiWallets);
         }
       } else {
-        // Backend не работает - используем mock данные
         console.log('Backend unavailable, using mock data');
         setWallets(mockDevWallets);
       }
@@ -77,6 +88,45 @@ export function VampPanel({ onBack }: VampPanelProps) {
       setIsLoadingWallets(false);
     }
   };
+
+  // Автоматическая загрузка метаданных токена при вставке CA
+  useEffect(() => {
+    const trimmedCA = tokenCA.trim();
+    
+    // Проверяем что CA валидный (32-44 символа - это Solana адрес)
+    if (trimmedCA.length >= 32 && trimmedCA.length <= 44) {
+      setIsFetchingMetadata(true);
+      setMetadataError(null);
+      setTokenMetadata(null);
+      
+      // Запрашиваем метаданные
+      fetch(`${API_URL}/vamp/metadata`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ca: trimmedCA }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            setTokenMetadata(data.data);
+            setMetadataError(null);
+          } else {
+            setMetadataError(data.error || 'Failed to fetch token metadata');
+          }
+        })
+        .catch((error) => {
+          console.error('Metadata fetch error:', error);
+          setMetadataError('Failed to fetch token metadata');
+        })
+        .finally(() => {
+          setIsFetchingMetadata(false);
+        });
+    } else {
+      // CA невалидный - сбрасываем метаданные
+      setTokenMetadata(null);
+      setMetadataError(null);
+    }
+  }, [tokenCA]);
 
   const handlePresetClick = (amount: string) => {
     setDevBuyAmount(amount);
@@ -94,14 +144,13 @@ export function VampPanel({ onBack }: VampPanelProps) {
     setIsLaunching(true);
 
     try {
-      // Пытаемся использовать настоящий API
       const response = await fetch(`${API_URL}/vamp/launch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ca: tokenCA,
           dev_wallet_address: wallets.find(w => w.id === selectedWallet)?.address || '',
-          dev_wallet_privkey: 'DEMO_KEY', // В реальности нужно безопасно передавать
+          dev_wallet_privkey: 'DEMO_KEY',
           dev_buy_sol: parseFloat(customAmount || devBuyAmount || '0'),
           launch_count: parseInt(launchCount),
         }),
@@ -110,44 +159,42 @@ export function VampPanel({ onBack }: VampPanelProps) {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.launched_tokens) {
-          // Успешный запуск через API
           const newTokens = data.launched_tokens.map((ca: string) => ({
             id: Date.now().toString() + Math.random(),
             ca: ca,
-            name: `TOKEN${Math.floor(Math.random() * 1000)}`,
+            name: tokenMetadata?.name || `TOKEN${Math.floor(Math.random() * 1000)}`,
             marketCap: Math.floor(Math.random() * 100000) + 5000,
             launchedAt: new Date(),
           }));
           setLaunchedTokens([...newTokens, ...launchedTokens]);
           setTokenCA('');
+          setTokenMetadata(null);
           setIsLaunching(false);
           return;
         }
       }
 
-      // Если API не сработал - используем mock
       throw new Error('API unavailable');
       
     } catch (error) {
-      // Fallback на mock поведение
       console.log('Using mock launch');
       setTimeout(() => {
         const newToken: LaunchedToken = {
           id: Date.now().toString(),
           ca: tokenCA || generateSolanaAddress(),
-          name: `TOKEN${Math.floor(Math.random() * 1000)}`,
+          name: tokenMetadata?.name || `TOKEN${Math.floor(Math.random() * 1000)}`,
           marketCap: Math.floor(Math.random() * 100000) + 5000,
           launchedAt: new Date(),
         };
         setLaunchedTokens([newToken, ...launchedTokens]);
         setTokenCA('');
+        setTokenMetadata(null);
         setIsLaunching(false);
       }, 1500);
     }
   };
 
   const handleSell = async (id: string) => {
-    // Пытаемся продать через API
     const token = launchedTokens.find(t => t.id === id);
     if (!token) return;
 
@@ -174,7 +221,6 @@ export function VampPanel({ onBack }: VampPanelProps) {
       console.log('API unavailable, using mock sell');
     }
 
-    // Fallback - просто удаляем
     setLaunchedTokens(launchedTokens.filter((t) => t.id !== id));
   };
 
@@ -187,27 +233,109 @@ export function VampPanel({ onBack }: VampPanelProps) {
       <Header title="VAMP" showBack onBack={onBack} variant="vamp" />
       
       <main className="flex-1 container max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Launch Form */}
+        {/* Token CA Input */}
         <section className="p-4 rounded-lg border border-vamp-red/30 bg-card space-y-4">
           <div className="flex items-center gap-2 text-vamp-red">
             <Skull className="w-5 h-5" />
             <h2 className="font-mono font-bold">Launch Token</h2>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="token-ca" className="text-sm text-muted-foreground">
-                Token CA
-              </Label>
-              <Input
-                id="token-ca"
-                placeholder="Enter token contract address..."
-                value={tokenCA}
-                onChange={(e) => setTokenCA(e.target.value)}
-                className="bg-input border-border focus:border-vamp-red/50 font-mono text-sm"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="token-ca" className="text-sm text-muted-foreground">
+              Token CA
+            </Label>
+            <Input
+              id="token-ca"
+              placeholder="Enter token contract address..."
+              value={tokenCA}
+              onChange={(e) => setTokenCA(e.target.value)}
+              className="bg-input border-border focus:border-vamp-red/50 font-mono text-sm"
+            />
+          </div>
 
+          {/* Loading State */}
+          {isFetchingMetadata && (
+            <div className="flex items-center justify-center gap-2 py-4">
+              <Loader2 className="w-5 h-5 text-vamp-red animate-spin" />
+              <span className="text-sm text-muted-foreground">Fetching token data...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {metadataError && !isFetchingMetadata && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+              <span className="text-sm text-destructive">{metadataError}</span>
+            </div>
+          )}
+
+          {/* Token Preview */}
+          {tokenMetadata && !isFetchingMetadata && (
+            <div className="p-4 rounded-lg border border-vamp-red/20 bg-card/50">
+              <div className="flex gap-4">
+                {/* Token Image */}
+                <div className="w-20 h-20 rounded-lg overflow-hidden border border-vamp-red/30 flex-shrink-0">
+                  <img
+                    src={tokenMetadata.image_url}
+                    alt={tokenMetadata.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
+                    }}
+                  />
+                </div>
+                
+                {/* Token Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono font-bold text-base">{tokenMetadata.name}</span>
+                    <span className="text-vamp-red font-mono text-sm">${tokenMetadata.ticker}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                    {tokenMetadata.description}
+                  </p>
+                  
+                  {/* Social Links */}
+                  <div className="flex items-center gap-3">
+                    {tokenMetadata.twitter && (
+                      <a
+                        href={tokenMetadata.twitter}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-vamp-red transition-colors"
+                      >
+                        <Twitter className="w-4 h-4" />
+                      </a>
+                    )}
+                    {tokenMetadata.telegram && (
+                      <a
+                        href={tokenMetadata.telegram}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-vamp-red transition-colors"
+                      >
+                        <Send className="w-4 h-4" />
+                      </a>
+                    )}
+                    {tokenMetadata.website && (
+                      <a
+                        href={tokenMetadata.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-vamp-red transition-colors"
+                      >
+                        <Globe className="w-4 h-4" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Launch Controls - только показывать когда есть метаданные */}
+        {tokenMetadata && !isFetchingMetadata && (
+          <section className="p-4 rounded-lg border border-vamp-red/30 bg-card space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Wallet</Label>
@@ -273,7 +401,7 @@ export function VampPanel({ onBack }: VampPanelProps) {
 
             <Button
               onClick={handleLaunch}
-              disabled={isLaunching || !tokenCA || !selectedWallet}
+              disabled={isLaunching || !selectedWallet}
               className="w-full bg-vamp-red hover:bg-vamp-red-hover text-foreground font-bold"
             >
               {isLaunching ? (
@@ -285,8 +413,8 @@ export function VampPanel({ onBack }: VampPanelProps) {
                 </>
               )}
             </Button>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Launched Tokens */}
         <section className="space-y-3">
