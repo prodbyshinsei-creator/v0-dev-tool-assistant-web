@@ -41,7 +41,7 @@ interface WalletType {
 const multiLaunchOptions = [1, 3, 5, 10];
 
 export function VampModal({ onClose }: VampModalProps) {
-  const [step, setStep] = useState<'input' | 'preview' | 'fastLaunch' | 'fullEdit'>('input');
+  const [mode, setMode] = useState<'main' | 'fastLaunch' | 'fullEdit'>('main');
   const [tokenCA, setTokenCA] = useState('');
   const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
   const [isFetching, setIsFetching] = useState(false);
@@ -62,10 +62,9 @@ export function VampModal({ onClose }: VampModalProps) {
     
     if (trimmedCA.length >= 32 && trimmedCA.length <= 44) {
       fetchMetadata(trimmedCA);
-    } else if (trimmedCA.length > 0 && trimmedCA.length < 32) {
-      setError(null);
+    } else {
       setTokenMetadata(null);
-      setStep('input');
+      setError(null);
     }
   }, [tokenCA]);
 
@@ -102,14 +101,13 @@ export function VampModal({ onClose }: VampModalProps) {
       
       if (data.success && data.data) {
         setTokenMetadata(data.data);
-        setStep('preview');
       } else {
         setError(data.error || 'Failed to fetch token metadata');
-        setStep('input');
+        setTokenMetadata(null);
       }
     } catch (err) {
       setError('Failed to fetch token metadata');
-      setStep('input');
+      setTokenMetadata(null);
     } finally {
       setIsFetching(false);
     }
@@ -172,7 +170,7 @@ export function VampModal({ onClose }: VampModalProps) {
           className="bg-card border-2 border-vamp-red/30 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {step === 'fullEdit' ? (
+          {mode === 'fullEdit' ? (
             <div className="relative">
               <Button
                 variant="ghost"
@@ -187,6 +185,90 @@ export function VampModal({ onClose }: VampModalProps) {
                 initialCA={tokenCA}
                 initialMetadata={tokenMetadata}
               />
+            </div>
+          ) : mode === 'fastLaunch' ? (
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <img src="/vamp-fangs-silver.png" alt="Vamp" className="w-10 h-10" />
+                  <h2 className="text-2xl font-mono font-bold text-vamp-red">FAST LAUNCH</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="hover:bg-vamp-red/10"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              <div className="space-y-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => setMode('main')}
+                  className="mb-4 hover:bg-vamp-red/10"
+                >
+                  ← Back
+                </Button>
+
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Wallet</Label>
+                    <Select value={selectedWallet} onValueChange={setSelectedWallet} disabled={isLoadingWallets}>
+                      <SelectTrigger className="bg-input border-border h-12">
+                        <SelectValue placeholder={isLoadingWallets ? "Loading..." : "Select wallet"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {wallets.map((wallet) => (
+                          <SelectItem key={wallet.id} value={wallet.id.toString()}>
+                            {wallet.name} ({wallet.balance.toFixed(2)} SOL)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Launch Count</Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {multiLaunchOptions.map((count) => (
+                        <Button
+                          key={count}
+                          variant={launchCount === count ? 'default' : 'outline'}
+                          onClick={() => setLaunchCount(count)}
+                          className={cn(
+                            'h-12',
+                            launchCount === count
+                              ? 'bg-vamp-red hover:bg-vamp-red-hover'
+                              : 'border-vamp-red/30 hover:border-vamp-red/60 hover:bg-vamp-red/10'
+                          )}
+                        >
+                          {count}x
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleFastLaunch}
+                    disabled={isLaunching || !selectedWallet}
+                    className="w-full bg-vamp-red hover:bg-vamp-red-hover h-14 text-lg font-bold"
+                  >
+                    {isLaunching ? (
+                      <>
+                        <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                        Launching {launchCount}x...
+                      </>
+                    ) : (
+                      <>
+                        <Rocket className="w-6 h-6 mr-2" />
+                        LAUNCH {launchCount}x
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="p-8">
@@ -205,183 +287,112 @@ export function VampModal({ onClose }: VampModalProps) {
                 </Button>
               </div>
 
-              {step === 'input' && (
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Contract Address</Label>
-                    <Input
-                      placeholder="Enter Solana token CA..."
-                      value={tokenCA}
-                      onChange={(e) => setTokenCA(e.target.value)}
-                      className="bg-input border-border focus:border-vamp-red/50 font-mono h-12"
-                    />
-                  </div>
-
-                  {isFetching && (
-                    <div className="flex items-center justify-center gap-2 py-4">
-                      <Loader2 className="w-5 h-5 text-vamp-red animate-spin" />
-                      <span className="text-sm text-muted-foreground">Fetching token data...</span>
-                    </div>
-                  )}
-
-                  {error && !isFetching && (
-                    <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
-                      <span className="text-sm text-destructive">{error}</span>
-                    </div>
-                  )}
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Contract Address</Label>
+                  <Input
+                    placeholder="Enter Solana token CA..."
+                    value={tokenCA}
+                    onChange={(e) => setTokenCA(e.target.value)}
+                    className="bg-input border-border focus:border-vamp-red/50 font-mono h-12"
+                  />
                 </div>
-              )}
 
-              {step === 'preview' && tokenMetadata && (
-                <div className="space-y-6">
-                  <div className="flex gap-6 p-6 rounded-xl border border-vamp-red/20 bg-vamp-red/5">
-                    <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-vamp-red/30 flex-shrink-0">
-                      <img
-                        src={tokenMetadata.image_url}
-                        alt={tokenMetadata.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96"%3E%3Crect fill="%23333" width="96" height="96"/%3E%3C/svg%3E';
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-2xl font-mono font-bold text-foreground">
-                          {tokenMetadata.name}
-                        </h3>
-                        <span className="text-lg font-mono text-vamp-red">
-                          ${tokenMetadata.ticker}
-                        </span>
-                      </div>
-
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                        {tokenMetadata.description}
-                      </p>
-
-                      <div className="flex gap-3">
-                        {tokenMetadata.website && (
-                          <a
-                            href={tokenMetadata.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
-                          >
-                            <Globe className="w-5 h-5 text-muted-foreground" />
-                          </a>
-                        )}
-                        {tokenMetadata.twitter && (
-                          <a
-                            href={tokenMetadata.twitter}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
-                          >
-                            <Twitter className="w-5 h-5 text-muted-foreground" />
-                          </a>
-                        )}
-                        {tokenMetadata.telegram && (
-                          <a
-                            href={tokenMetadata.telegram}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
-                          >
-                            <Send className="w-5 h-5 text-muted-foreground" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
+                {isFetching && (
+                  <div className="flex items-center justify-center gap-2 py-4">
+                    <Loader2 className="w-5 h-5 text-vamp-red animate-spin" />
+                    <span className="text-sm text-muted-foreground">Fetching token data...</span>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Button
-                      onClick={() => setStep('fullEdit')}
-                      variant="outline"
-                      className="h-12 border-vamp-red/30 hover:border-vamp-red/60 hover:bg-vamp-red/10 font-bold"
-                    >
-                      EDIT
-                    </Button>
-                    <Button
-                      onClick={() => setStep('fastLaunch')}
-                      className="h-12 bg-vamp-red hover:bg-vamp-red-hover font-bold"
-                    >
-                      <Rocket className="w-5 h-5 mr-2" />
-                      FAST LAUNCH
-                    </Button>
+                {error && !isFetching && (
+                  <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+                    <span className="text-sm text-destructive">{error}</span>
                   </div>
-                </div>
-              )}
+                )}
 
-              {step === 'fastLaunch' && (
-                <div className="space-y-6">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setStep('preview')}
-                    className="mb-4 hover:bg-vamp-red/10"
-                  >
-                    ← Back
-                  </Button>
-
+                {tokenMetadata && !isFetching && (
                   <div className="space-y-4">
-                    <div className="space-y-3">
-                      <Label className="text-base font-semibold">Wallet</Label>
-                      <Select value={selectedWallet} onValueChange={setSelectedWallet} disabled={isLoadingWallets}>
-                        <SelectTrigger className="bg-input border-border h-12">
-                          <SelectValue placeholder={isLoadingWallets ? "Loading..." : "Select wallet"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {wallets.map((wallet) => (
-                            <SelectItem key={wallet.id} value={wallet.id.toString()}>
-                              {wallet.name} ({wallet.balance.toFixed(2)} SOL)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <div className="flex gap-6 p-6 rounded-xl border border-vamp-red/20 bg-vamp-red/5">
+                      <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-vamp-red/30 flex-shrink-0">
+                        <img
+                          src={tokenMetadata.image_url}
+                          alt={tokenMetadata.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96"%3E%3Crect fill="%23333" width="96" height="96"/%3E%3C/svg%3E';
+                          }}
+                        />
+                      </div>
 
-                    <div className="space-y-3">
-                      <Label className="text-base font-semibold">Launch Count</Label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {multiLaunchOptions.map((count) => (
-                          <Button
-                            key={count}
-                            variant={launchCount === count ? 'default' : 'outline'}
-                            onClick={() => setLaunchCount(count)}
-                            className={cn(
-                              'h-12',
-                              launchCount === count
-                                ? 'bg-vamp-red hover:bg-vamp-red-hover'
-                                : 'border-vamp-red/30 hover:border-vamp-red/60 hover:bg-vamp-red/10'
-                            )}
-                          >
-                            {count}x
-                          </Button>
-                        ))}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-2xl font-mono font-bold text-foreground">
+                            {tokenMetadata.name}
+                          </h3>
+                          <span className="text-lg font-mono text-vamp-red">
+                            ${tokenMetadata.ticker}
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                          {tokenMetadata.description}
+                        </p>
+
+                        <div className="flex gap-3">
+                          {tokenMetadata.website && (
+                            <a
+                              href={tokenMetadata.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
+                            >
+                              <Globe className="w-5 h-5 text-muted-foreground" />
+                            </a>
+                          )}
+                          {tokenMetadata.twitter && (
+                            <a
+                              href={tokenMetadata.twitter}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
+                            >
+                              <Twitter className="w-5 h-5 text-muted-foreground" />
+                            </a>
+                          )}
+                          {tokenMetadata.telegram && (
+                            <a
+                              href={tokenMetadata.telegram}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
+                            >
+                              <Send className="w-5 h-5 text-muted-foreground" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    <Button
-                      onClick={handleFastLaunch}
-                      disabled={isLaunching || !selectedWallet}
-                      className="w-full bg-vamp-red hover:bg-vamp-red-hover h-14 text-lg font-bold"
-                    >
-                      {isLaunching ? (
-                        <>
-                          <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                          Launching {launchCount}x...
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="w-6 h-6 mr-2" />
-                          LAUNCH {launchCount}x
-                        </>
-                      )}
-                    </Button>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        onClick={() => setMode('fullEdit')}
+                        variant="outline"
+                        className="h-12 border-vamp-red/30 hover:border-vamp-red/60 hover:bg-vamp-red/10 font-bold"
+                      >
+                        EDIT
+                      </Button>
+                      <Button
+                        onClick={() => setMode('fastLaunch')}
+                        className="h-12 bg-vamp-red hover:bg-vamp-red-hover font-bold"
+                      >
+                        <Rocket className="w-5 h-5 mr-2" />
+                        FAST LAUNCH
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
