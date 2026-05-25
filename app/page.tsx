@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Droplet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VampModal } from '@/components/vamp-modal';
 import { cn } from '@/lib/utils';
@@ -12,7 +11,6 @@ const tools = [
     name: 'VAMP',
     description: 'Token Launch Platform',
     icon: '/vamp-fangs-silver.png',
-    color: 'vamp',
     hoverColor: 'hover:border-vamp-red/60 hover:bg-vamp-red/5',
     enabled: true,
   },
@@ -20,26 +18,31 @@ const tools = [
     id: 'volume',
     name: 'VOLUME',
     description: 'Volume Bot',
-    icon: null,
-    color: 'volume',
+    icon: '/vamp-blood.png',
     hoverColor: 'hover:border-volume-blue/60 hover:bg-volume-blue/5',
     enabled: true,
   },
   {
-    id: 'wallet',
-    name: 'Wallet Portfolio',
+    id: 'wallets',
+    name: 'WALLETS',
     description: 'Wallet Management',
-    icon: null,
-    color: 'wallet',
+    icon: '/vamp-blood.png',
     hoverColor: 'hover:border-wallet-green/60 hover:bg-wallet-green/5',
     enabled: true,
+  },
+  {
+    id: 'portfolio',
+    name: 'PORTFOLIO',
+    description: 'Portfolio Tracking',
+    icon: '/vamp-blood.png',
+    hoverColor: 'hover:border-white/40 hover:bg-white/5',
+    enabled: false,
   },
   {
     id: 'web3',
     name: 'WEB3 ПРОЕКТЫ',
     description: 'Coming Soon',
     icon: null,
-    color: 'default',
     hoverColor: 'hover:border-white/40 hover:bg-white/5',
     enabled: false,
   },
@@ -60,16 +63,15 @@ export default function Home() {
     if (toolId === 'vamp') {
       setSelectedTool('vamp');
     }
-    // Volume, Wallet - добавим позже
   };
 
   return (
     <div className="min-h-screen bg-black relative">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border/30 bg-black/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <Droplet className="w-8 h-8 text-red-500" fill="currentColor" />
+        <div className="container mx-auto flex h-16 items-center justify-center px-6">
+          <div className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
+            <img src="/vamp-blood.png" alt="Blood" className="w-8 h-8" />
             <h1 className="text-xl font-mono font-bold tracking-wider text-foreground">
               DEV TOOL ASSISTANT
             </h1>
@@ -77,7 +79,7 @@ export default function Home() {
           
           <Button
             variant="outline"
-            className="border-border/50 bg-black/40 hover:bg-white/10 backdrop-blur-sm"
+            className="border-border/50 bg-black/40 hover:bg-white/10 backdrop-blur-sm absolute right-6"
             disabled
           >
             LOGIN
