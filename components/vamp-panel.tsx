@@ -26,6 +26,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 interface VampPanelProps {
   onBack: () => void;
+  initialCA?: string;
+  initialMetadata?: TokenMetadata | null;
 }
 
 interface TokenMetadata {
@@ -57,7 +59,7 @@ const platforms = [
   { id: 'meteora', name: 'Meteora', logo: '/platforms/meteora.svg' },
 ];
 
-export function VampPanel({ onBack }: VampPanelProps) {
+export function VampPanel({ onBack, initialCA, initialMetadata }: VampPanelProps) {
   const [tokenCA, setTokenCA] = useState('');
   const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
@@ -86,6 +88,23 @@ export function VampPanel({ onBack }: VampPanelProps) {
     loadWallets();
   }, []);
 
+  // Initialize with data from modal when EDIT is clicked
+  useEffect(() => {
+    if (initialCA) {
+      setTokenCA(initialCA);
+    }
+    if (initialMetadata) {
+      setTokenMetadata(initialMetadata);
+      setTokenName(initialMetadata.name || '');
+      setTokenTicker(initialMetadata.ticker || '');
+      setTokenDescription(initialMetadata.description || '');
+      setTokenWebsite(initialMetadata.website || '');
+      setTokenTwitter(initialMetadata.twitter || '');
+      setTokenTelegram(initialMetadata.telegram || '');
+      setTokenImage(initialMetadata.image_url || '');
+    }
+  }, [initialCA, initialMetadata]);
+
   const loadWallets = async () => {
     try {
       setIsLoadingWallets(true);
@@ -106,6 +125,11 @@ export function VampPanel({ onBack }: VampPanelProps) {
 
   useEffect(() => {
     const trimmedCA = tokenCA.trim();
+    
+    // Skip auto-fetch if we already have metadata from initialMetadata
+    if (initialMetadata && tokenCA === initialCA) {
+      return;
+    }
     
     if (trimmedCA.length >= 32 && trimmedCA.length <= 44) {
       setIsFetchingMetadata(true);
@@ -144,7 +168,7 @@ export function VampPanel({ onBack }: VampPanelProps) {
       setTokenMetadata(null);
       setMetadataError(null);
     }
-  }, [tokenCA]);
+  }, [tokenCA, initialCA, initialMetadata]);
 
   const handleLaunch = async () => {
     if (!tokenCA || !selectedWallet) return;
