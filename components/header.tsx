@@ -35,7 +35,7 @@ export function Header({ title = 'DEV TOOL ASSISTANT', showBack, onBack, variant
         )}
         <div className="flex items-center gap-2">
           {variant === 'default' ? (
-            <img src="/vamp-blood.png" alt="Vamp" className="w-5 h-5" />
+            <img src="/vamp-blood.png" alt="Blood Drop" className="w-8 h-8" />
           ) : (
             <Terminal className={cn('w-5 h-5', variantStyles[variant])} />
           )}
