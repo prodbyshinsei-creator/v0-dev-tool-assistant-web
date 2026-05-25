@@ -461,6 +461,8 @@ export function VampPanel({ onBack }: VampPanelProps) {
                   { id: 'bonk', name: 'Bonk' },
                   { id: 'studio', name: 'Studio' },
                   { id: 'bags', name: 'Bags' },
+                  { id: 'raydium', name: 'Raydium' },
+                  { id: 'meteora', name: 'Meteora' },
                 ].map((platform) => (
                   <Button
                     key={platform.id}
