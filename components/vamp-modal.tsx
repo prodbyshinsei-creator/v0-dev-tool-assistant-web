@@ -47,7 +47,6 @@ export function VampModal({ onClose }: VampModalProps) {
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Fast Launch state
   const [selectedWallet, setSelectedWallet] = useState('');
   const [launchCount, setLaunchCount] = useState(1);
   const [wallets, setWallets] = useState<WalletType[]>([]);
@@ -57,6 +56,18 @@ export function VampModal({ onClose }: VampModalProps) {
   useEffect(() => {
     loadWallets();
   }, []);
+
+  useEffect(() => {
+    const trimmedCA = tokenCA.trim();
+    
+    if (trimmedCA.length >= 32 && trimmedCA.length <= 44) {
+      fetchMetadata(trimmedCA);
+    } else if (trimmedCA.length > 0 && trimmedCA.length < 32) {
+      setError(null);
+      setTokenMetadata(null);
+      setStep('input');
+    }
+  }, [tokenCA]);
 
   const loadWallets = async () => {
     try {
@@ -76,14 +87,7 @@ export function VampModal({ onClose }: VampModalProps) {
     }
   };
 
-  const handleFetchMetadata = async () => {
-    const trimmedCA = tokenCA.trim();
-    
-    if (trimmedCA.length < 32 || trimmedCA.length > 44) {
-      setError('Invalid contract address length');
-      return;
-    }
-
+  const fetchMetadata = async (ca: string) => {
     setIsFetching(true);
     setError(null);
     
@@ -91,7 +95,7 @@ export function VampModal({ onClose }: VampModalProps) {
       const response = await fetch(`${API_URL}/vamp/metadata`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ca: trimmedCA }),
+        body: JSON.stringify({ ca }),
       });
       
       const data = await response.json();
@@ -101,9 +105,11 @@ export function VampModal({ onClose }: VampModalProps) {
         setStep('preview');
       } else {
         setError(data.error || 'Failed to fetch token metadata');
+        setStep('input');
       }
     } catch (err) {
       setError('Failed to fetch token metadata');
+      setStep('input');
     } finally {
       setIsFetching(false);
     }
@@ -156,13 +162,11 @@ export function VampModal({ onClose }: VampModalProps) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
         onClick={onClose}
       />
 
-      {/* Modal Content */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
           className="bg-card border-2 border-vamp-red/30 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto shadow-2xl"
@@ -178,11 +182,14 @@ export function VampModal({ onClose }: VampModalProps) {
               >
                 <X className="w-5 h-5" />
               </Button>
-              <VampPanel onBack={onClose} />
+              <VampPanel 
+                onBack={onClose}
+                initialCA={tokenCA}
+                initialMetadata={tokenMetadata}
+              />
             </div>
           ) : (
             <div className="p-8">
-              {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <img src="/vamp-fangs-silver.png" alt="Vamp" className="w-10 h-10" />
@@ -198,44 +205,33 @@ export function VampModal({ onClose }: VampModalProps) {
                 </Button>
               </div>
 
-              {/* CA Input Step */}
               {step === 'input' && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="space-y-3">
                     <Label className="text-base font-semibold">Contract Address</Label>
                     <Input
                       placeholder="Enter Solana token CA..."
                       value={tokenCA}
                       onChange={(e) => setTokenCA(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleFetchMetadata()}
                       className="bg-input border-border focus:border-vamp-red/50 font-mono h-12"
                     />
                   </div>
 
-                  {error && (
+                  {isFetching && (
+                    <div className="flex items-center justify-center gap-2 py-4">
+                      <Loader2 className="w-5 h-5 text-vamp-red animate-spin" />
+                      <span className="text-sm text-muted-foreground">Fetching token data...</span>
+                    </div>
+                  )}
+
+                  {error && !isFetching && (
                     <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
                       <span className="text-sm text-destructive">{error}</span>
                     </div>
                   )}
-
-                  <Button
-                    onClick={handleFetchMetadata}
-                    disabled={isFetching || !tokenCA.trim()}
-                    className="w-full bg-vamp-red hover:bg-vamp-red-hover h-12 font-bold"
-                  >
-                    {isFetching ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Fetching...
-                      </>
-                    ) : (
-                      'FETCH TOKEN'
-                    )}
-                  </Button>
                 </div>
               )}
 
-              {/* Token Preview Step */}
               {step === 'preview' && tokenMetadata && (
                 <div className="space-y-6">
                   <div className="flex gap-6 p-6 rounded-xl border border-vamp-red/20 bg-vamp-red/5">
@@ -318,7 +314,6 @@ export function VampModal({ onClose }: VampModalProps) {
                 </div>
               )}
 
-              {/* Fast Launch Step */}
               {step === 'fastLaunch' && (
                 <div className="space-y-6">
                   <Button
