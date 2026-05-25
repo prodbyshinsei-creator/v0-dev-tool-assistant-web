@@ -1,5 +1,6 @@
 [build]
   command = "npm run build"
+  publish = "out"
 
 [build.environment]
   NEXT_PUBLIC_API_URL = "https://dev-tool-assistant-api-production.up.railway.app"
