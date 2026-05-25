@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "out",
   "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "pnpm install",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://dev-tool-assistant-api-production.up.railway.app"
   }
