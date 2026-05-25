@@ -34,7 +34,11 @@ export function Header({ title = 'DEV TOOL ASSISTANT', showBack, onBack, variant
           </Button>
         )}
         <div className="flex items-center gap-2">
-          <Terminal className={cn('w-5 h-5', variantStyles[variant])} />
+          {variant === 'default' ? (
+            <img src="/vamp-blood.png" alt="Vamp" className="w-5 h-5" />
+          ) : (
+            <Terminal className={cn('w-5 h-5', variantStyles[variant])} />
+          )}
           <h1 className={cn('text-lg font-mono font-bold tracking-wider', variantStyles[variant])}>
             {title}
           </h1>

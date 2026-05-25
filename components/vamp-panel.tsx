@@ -457,12 +457,12 @@ export function VampPanel({ onBack }: VampPanelProps) {
               <Label className="text-sm text-muted-foreground">Platforms</Label>
               <div className="flex flex-wrap gap-2">
                 {[
-                  { id: 'pump', name: 'Pump' },
-                  { id: 'bonk', name: 'Bonk' },
-                  { id: 'studio', name: 'Studio' },
-                  { id: 'bags', name: 'Bags' },
-                  { id: 'raydium', name: 'Raydium' },
-                  { id: 'meteora', name: 'Meteora' },
+                  { id: 'pump', name: 'Pump', logo: '/platforms/pump.svg' },
+                  { id: 'bonk', name: 'Bonk', logo: '/platforms/bonk.svg' },
+                  { id: 'studio', name: 'Studio', logo: '/platforms/studio.svg' },
+                  { id: 'bags', name: 'Bags', logo: '/platforms/bags.svg' },
+                  { id: 'raydium', name: 'Raydium', logo: '/platforms/raydium.svg' },
+                  { id: 'meteora', name: 'Meteora', logo: '/platforms/meteora.svg' },
                 ].map((platform) => (
                   <Button
                     key={platform.id}
@@ -470,14 +470,17 @@ export function VampPanel({ onBack }: VampPanelProps) {
                     size="sm"
                     onClick={() => togglePlatform(platform.id)}
                     className={cn(
-                      'h-8',
+                      'h-9 gap-1.5',
                       selectedPlatforms.includes(platform.id)
                         ? 'bg-vamp-red hover:bg-vamp-red-hover text-foreground'
                         : 'border-vamp-red/30 hover:border-vamp-red/60 hover:bg-vamp-red/10'
                     )}
                   >
+                    {platform.logo && (
+                      <img src={platform.logo} alt={platform.name} className="w-4 h-4" />
+                    )}
                     {selectedPlatforms.includes(platform.id) && (
-                      <CheckCircle className="w-3 h-3 mr-1" />
+                      <CheckCircle className="w-3 h-3" />
                     )}
                     {platform.name}
                   </Button>
