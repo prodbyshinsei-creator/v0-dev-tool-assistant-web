@@ -105,7 +105,6 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
             wallets_count: selectedWallets.length,
           };
           setSessions([newSession, ...sessions]);
-          setStep('sessions');
           
           setTokenCA('');
           setSelectedWallets([]);
@@ -130,7 +129,6 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
           wallets_count: selectedWallets.length,
         };
         setSessions([newSession, ...sessions]);
-        setStep('sessions');
         
         setTokenCA('');
         setSelectedWallets([]);
@@ -176,6 +174,7 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-8">
+            {/* Header with close button */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <img src="/vamp-blood.png" alt="Volume" className="w-10 h-10" />
@@ -191,6 +190,33 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
               </Button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={() => setStep('main')}
+                className={cn(
+                  'flex-1 py-2 px-4 rounded-lg font-bold transition-all',
+                  step === 'main'
+                    ? 'bg-volume-blue text-foreground'
+                    : 'bg-transparent border border-volume-blue/30 text-muted-foreground hover:border-volume-blue/60'
+                )}
+              >
+                Start Session
+              </button>
+              <button
+                onClick={() => setStep('sessions')}
+                className={cn(
+                  'flex-1 py-2 px-4 rounded-lg font-bold transition-all',
+                  step === 'sessions'
+                    ? 'bg-volume-blue text-foreground'
+                    : 'bg-transparent border border-volume-blue/30 text-muted-foreground hover:border-volume-blue/60'
+                )}
+              >
+                Active Sessions ({sessions.length})
+              </button>
+            </div>
+
+            {/* Content */}
             {step === 'main' ? (
               <div className="space-y-5">
                 <div className="space-y-2">
@@ -274,81 +300,61 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                     </>
                   )}
                 </Button>
-
-                {sessions.length > 0 && (
-                  <Button
-                    onClick={() => setStep('sessions')}
-                    variant="outline"
-                    className="w-full border-volume-blue/30 hover:border-volume-blue/60 hover:bg-volume-blue/10"
-                  >
-                    View Active Sessions ({sessions.length})
-                  </Button>
-                )}
               </div>
             ) : (
-              <div className="space-y-4">
-                <Button
-                  onClick={() => setStep('main')}
-                  variant="outline"
-                  className="mb-4 border-volume-blue/30 hover:border-volume-blue/60 hover:bg-volume-blue/10"
-                >
-                  ← New Session
-                </Button>
-
-                <div className="space-y-2">
-                  {sessions.length === 0 ? (
-                    <div className="p-6 text-center text-muted-foreground">No active sessions</div>
-                  ) : (
-                    sessions.map((session) => (
-                      <div
-                        key={session.id}
-                        className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50 hover:border-volume-blue/30"
-                      >
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-bold">{session.ca.slice(0, 8)}...</span>
-                            <span
-                              className={cn(
-                                'text-xs px-2 py-0.5 rounded font-mono',
-                                session.status === 'running'
-                                  ? 'bg-wallet-green/20 text-wallet-green'
-                                  : 'bg-yellow-500/20 text-yellow-400'
-                              )}
-                            >
-                              {session.status.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {session.txs} txs • {session.fees_sol.toFixed(4)} SOL
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleSessionPause(session.id)}
-                            className="border-volume-blue/30 hover:border-volume-blue/60 h-8"
-                          >
-                            {session.status === 'running' ? (
-                              <Pause className="w-4 h-4" />
-                            ) : (
-                              <Play className="w-4 h-4" />
+              <div className="space-y-2">
+                {sessions.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">No active sessions</div>
+                ) : (
+                  sessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50 hover:border-volume-blue/30"
+                    >
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm font-bold">{session.ca.slice(0, 8)}...</span>
+                          <span
+                            className={cn(
+                              'text-xs px-2 py-0.5 rounded font-mono',
+                              session.status === 'running'
+                                ? 'bg-wallet-green/20 text-wallet-green'
+                                : 'bg-yellow-500/20 text-yellow-400'
                             )}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => stopSession(session.id)}
-                            className="border-destructive/30 hover:border-destructive/60 hover:bg-destructive/10 text-destructive h-8"
                           >
-                            <Power className="w-4 h-4" />
-                          </Button>
+                            {session.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {session.txs} txs • {session.fees_sol.toFixed(4)} SOL • {session.wallets_count} wallets
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleSessionPause(session.id)}
+                          className="border-volume-blue/30 hover:border-volume-blue/60 h-8"
+                        >
+                          {session.status === 'running' ? (
+                            <Pause className="w-4 h-4" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => stopSession(session.id)}
+                          className="border-destructive/30 hover:border-destructive/60 hover:bg-destructive/10 text-destructive h-8"
+                        >
+                          <Power className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>

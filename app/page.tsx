@@ -55,7 +55,7 @@ const comingSoonBlocks = [
   { id: 3, label: '?' },
 ];
 
-// Vibrant Shader Background with Flowing Waves
+// Blue Shader Background like maxy.tools with bright flowing waves
 function ShaderBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -77,38 +77,40 @@ function ShaderBackground() {
     resize();
     window.addEventListener('resize', resize);
 
+    // Blue and black flowing waves
     const render = () => {
       const width = canvas.width;
       const height = canvas.height;
       
-      time += 0.003; // Faster
+      time += 0.004;
 
       const imageData = ctx.createImageData(width, height);
       const data = imageData.data;
 
       for (let y = 0; y < height; y += 2) {
         for (let x = 0; x < width; x += 2) {
-          // Flowing wave patterns
-          const wave1 = Math.sin((x + time * 120) * 0.025 + y * 0.005) * Math.cos((y + time * 100) * 0.02) * 0.9;
-          const wave2 = Math.sin((x - time * 80) * 0.01 + y * 0.008 + time) * 0.7;
-          const wave3 = Math.cos((x + y) * 0.003 + time * 0.8) * 0.5;
-          const wave4 = Math.sin(time * 1.5 - (x + y) * 0.005) * 0.6;
+          // Multiple flowing wave layers for complex animation
+          const wave1 = Math.sin((x + time * 150) * 0.015 + y * 0.008) * Math.cos((y + time * 120) * 0.012) * 0.85;
+          const wave2 = Math.sin((x - time * 100) * 0.008 + y * 0.01 + time * 0.5) * 0.7;
+          const wave3 = Math.cos((x + y) * 0.004 + time * 1.2) * 0.6;
+          const wave4 = Math.sin(time * 2 - (x + y) * 0.006) * 0.5;
           
-          const combined = (wave1 + wave2 + wave3 + wave4) / 2.7;
-          const value = Math.floor((combined + 1) * 50);
+          const combined = (wave1 + wave2 + wave3 + wave4) / 2.75;
+          const value = Math.floor((combined + 1) * 80);
           
-          // Vibrant red/crimson with more color variation
-          const r = Math.min(255, value + 90);
-          const g = Math.min(255, value + 20);
-          const b = Math.min(255, value + 60);
+          // Bright blue with black shadows - like maxy.tools
+          const brightness = Math.sin(x * 0.001 + time * 0.1) * 0.3 + 0.7;
+          const r = Math.floor(value * 0.3 * brightness);
+          const g = Math.floor((value * 0.8 + 60) * brightness);
+          const b = Math.floor((value + 100) * brightness);
 
           for (let dy = 0; dy < 2; dy++) {
             for (let dx = 0; dx < 2; dx++) {
               const i = ((y + dy) * width + (x + dx)) * 4;
               if (i < data.length) {
-                data[i] = r;
-                data[i + 1] = g;
-                data[i + 2] = b;
+                data[i] = Math.min(255, r);
+                data[i + 1] = Math.min(255, g);
+                data[i + 2] = Math.min(255, b);
                 data[i + 3] = 255;
               }
             }
@@ -132,7 +134,7 @@ function ShaderBackground() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full"
-      style={{ opacity: 0.6 }}
+      style={{ opacity: 0.7 }}
     />
   );
 }
@@ -155,7 +157,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Vibrant Shader Background */}
+      {/* Blue Shader Background */}
       <ShaderBackground />
 
       {/* Content */}
