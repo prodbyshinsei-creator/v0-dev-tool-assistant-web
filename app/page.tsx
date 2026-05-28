@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { VampModal } from '@/components/vamp-modal';
-import { VolumePanel } from '@/components/volume-panel';
+import { VolumeModal } from '@/components/volume-modal';
 import { cn } from '@/lib/utils';
 
 const tools = [
@@ -55,7 +55,7 @@ const comingSoonBlocks = [
   { id: 3, label: '?' },
 ];
 
-// Improved Shader Background with Waves
+// Vibrant Shader Background with Flowing Waves
 function ShaderBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -77,30 +77,30 @@ function ShaderBackground() {
     resize();
     window.addEventListener('resize', resize);
 
-    // Waves instead of noise for more organic feel
     const render = () => {
       const width = canvas.width;
       const height = canvas.height;
       
-      time += 0.002;
+      time += 0.003; // Faster
 
       const imageData = ctx.createImageData(width, height);
       const data = imageData.data;
 
       for (let y = 0; y < height; y += 2) {
         for (let x = 0; x < width; x += 2) {
-          // Multiple wave layers for complex animation
-          const wave1 = Math.sin((x + time * 100) * 0.02) * Math.cos((y + time * 80) * 0.015) * 0.8;
-          const wave2 = Math.sin((x - time * 60) * 0.008 + y * 0.01) * 0.6;
-          const wave3 = Math.cos((x + y) * 0.005 + time * 0.5) * 0.4;
+          // Flowing wave patterns
+          const wave1 = Math.sin((x + time * 120) * 0.025 + y * 0.005) * Math.cos((y + time * 100) * 0.02) * 0.9;
+          const wave2 = Math.sin((x - time * 80) * 0.01 + y * 0.008 + time) * 0.7;
+          const wave3 = Math.cos((x + y) * 0.003 + time * 0.8) * 0.5;
+          const wave4 = Math.sin(time * 1.5 - (x + y) * 0.005) * 0.6;
           
-          const combined = (wave1 + wave2 + wave3) / 2.2;
-          const value = Math.floor((combined + 1) * 40);
+          const combined = (wave1 + wave2 + wave3 + wave4) / 2.7;
+          const value = Math.floor((combined + 1) * 50);
           
-          // Brighter crimson/red tones
-          const r = Math.min(255, value + 70);
+          // Vibrant red/crimson with more color variation
+          const r = Math.min(255, value + 90);
           const g = Math.min(255, value + 20);
-          const b = Math.min(255, value + 50);
+          const b = Math.min(255, value + 60);
 
           for (let dy = 0; dy < 2; dy++) {
             for (let dx = 0; dx < 2; dx++) {
@@ -132,7 +132,7 @@ function ShaderBackground() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full"
-      style={{ opacity: 0.5 }}
+      style={{ opacity: 0.6 }}
     />
   );
 }
@@ -155,7 +155,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Shader Background */}
+      {/* Vibrant Shader Background */}
       <ShaderBackground />
 
       {/* Content */}
@@ -244,9 +244,9 @@ export default function Home() {
         <VampModal onClose={() => setSelectedTool(null)} />
       )}
 
-      {/* Volume Panel */}
+      {/* Volume Modal */}
       {selectedTool === 'volume' && (
-        <VolumePanel onBack={() => setSelectedTool(null)} />
+        <VolumeModal onClose={() => setSelectedTool(null)} />
       )}
 
       {/* Wallets Modal */}
