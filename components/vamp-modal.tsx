@@ -1,161 +1,74 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Globe, Twitter, Send, Rocket } from 'lucide-react';
+import { X, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { VampPanel } from '@/components/vamp-panel';
 import { cn } from '@/lib/utils';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { useWallets, usePortfolio } from '@/hooks/storage';
 
 interface VampModalProps {
   onClose: () => void;
 }
 
-interface TokenMetadata {
-  name: string;
-  ticker: string;
-  description: string;
-  image_url: string;
-  twitter?: string;
-  telegram?: string;
-  website?: string;
-}
-
-interface WalletType {
-  id: number;
-  name: string;
-  address: string;
-  balance: number;
-}
-
-const multiLaunchOptions = [1, 3, 5, 10];
-
 export function VampModal({ onClose }: VampModalProps) {
-  const [mode, setMode] = useState<'main' | 'fastLaunch' | 'fullEdit'>('main');
-  const [tokenCA, setTokenCA] = useState('');
-  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { wallets } = useWallets();
+  const { addToken } = usePortfolio();
   
-  const [selectedWallet, setSelectedWallet] = useState('');
-  const [launchCount, setLaunchCount] = useState(1);
-  const [wallets, setWallets] = useState<WalletType[]>([]);
-  const [isLoadingWallets, setIsLoadingWallets] = useState(false);
+  const [step, setStep] = useState<'input' | 'config' | 'launch'>('input');
+  const [tokenCA, setTokenCA] = useState('');
+  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
+  const [tokenData, setTokenData] = useState<any>(null);
   const [isLaunching, setIsLaunching] = useState(false);
 
-  useEffect(() => {
-    loadWallets();
-  }, []);
+  const devWallets = wallets.filter(w => w.type === 'dev');
 
-  useEffect(() => {
-    const trimmedCA = tokenCA.trim();
-    
-    if (trimmedCA.length >= 32 && trimmedCA.length <= 44) {
-      fetchMetadata(trimmedCA);
-    } else {
-      setTokenMetadata(null);
-      setError(null);
-    }
-  }, [tokenCA]);
-
-  const loadWallets = async () => {
-    try {
-      setIsLoadingWallets(true);
-      const response = await fetch(`${API_URL}/wallets?user_id=1&wallet_type=dev`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.wallets) {
-          setWallets(data.wallets);
-        }
-      }
-    } catch (error) {
-      console.log('Backend unavailable');
-    } finally {
-      setIsLoadingWallets(false);
-    }
-  };
-
-  const fetchMetadata = async (ca: string) => {
-    setIsFetching(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(`${API_URL}/vamp/metadata`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ca }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setTokenMetadata(data.data);
-      } else {
-        setError(data.error || 'Failed to fetch token metadata');
-        setTokenMetadata(null);
-      }
-    } catch (err) {
-      setError('Failed to fetch token metadata');
-      setTokenMetadata(null);
-    } finally {
-      setIsFetching(false);
-    }
-  };
-
-  const handleFastLaunch = async () => {
-    if (!selectedWallet) return;
+  const handleFetchMetadata = async () => {
+    if (!tokenCA) return;
     
     setIsLaunching(true);
+    // Mock fetch - в реальности здесь будет API call
+    setTimeout(() => {
+      setTokenData({
+        name: 'Test Token',
+        symbol: 'TEST',
+        supply: '1000000',
+        image: null,
+      });
+      setStep('config');
+      setIsLaunching(false);
+    }, 1500);
+  };
 
-    try {
-      const response = await fetch(`${API_URL}/vamp/launch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ca: tokenCA,
-          dev_wallet_address: wallets.find(w => w.id.toString() === selectedWallet)?.address || '',
-          dev_wallet_privkey: 'DEMO_KEY',
-          dev_buy_sol: 0.5,
-          launch_count: launchCount,
-          name: tokenMetadata?.name,
-          ticker: tokenMetadata?.ticker,
-          description: tokenMetadata?.description,
-          website: tokenMetadata?.website,
-          twitter: tokenMetadata?.twitter,
-          telegram: tokenMetadata?.telegram,
-        }),
+  const handleLaunch = async () => {
+    if (!selectedWallet || !tokenData) return;
+    
+    setIsLaunching(true);
+    setTimeout(() => {
+      // Add to portfolio
+      addToken({
+        id: Math.random().toString(),
+        ca: tokenCA,
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        launchPrice: 0.0001,
+        currentPrice: 0.0001,
+        bought: 0,
+        sold: 0,
+        profit: 0,
+        launchedAt: Date.now(),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          alert(`Launched ${launchCount}x successfully!`);
-          onClose();
-          return;
-        }
-      }
-
-      throw new Error('API unavailable');
-    } catch (error) {
-      console.log('Mock launch');
-      setTimeout(() => {
-        alert(`Mock: Launched ${launchCount}x!`);
-        onClose();
-      }, 1500);
-    } finally {
       setIsLaunching(false);
-    }
+      setStep('launch');
+      
+      // Redirect to token page
+      setTimeout(() => {
+        window.open(`https://dexscreener.com/solana/${tokenCA}`, '_blank');
+        onClose();
+      }, 2000);
+    }, 2000);
   };
 
   return (
@@ -167,234 +80,139 @@ export function VampModal({ onClose }: VampModalProps) {
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="bg-card border-2 border-vamp-red/30 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto shadow-2xl"
+          className="bg-black/80 backdrop-blur-2xl border-2 border-red-500/30 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {mode === 'fullEdit' ? (
-            <div className="relative">
+          <div className="p-8">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <img src="/vamp-fangs-silver.png" alt="VAMP" className="w-10 h-10" />
+                <h2 className="text-3xl font-mono font-bold text-red-500">VAMP</h2>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                className="absolute top-4 right-4 z-10 hover:bg-vamp-red/10"
+                className="hover:bg-red-500/10"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </Button>
-              <VampPanel 
-                onBack={onClose}
-                initialCA={tokenCA}
-                initialMetadata={tokenMetadata}
-              />
             </div>
-          ) : mode === 'fastLaunch' ? (
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <img src="/vamp-fangs-silver.png" alt="Vamp" className="w-10 h-10" />
-                  <h2 className="text-2xl font-mono font-bold text-vamp-red">FAST LAUNCH</h2>
+
+            {step === 'input' && (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-lg font-semibold text-white/90">Token Contract Address</Label>
+                  <Input
+                    value={tokenCA}
+                    onChange={(e) => setTokenCA(e.target.value)}
+                    placeholder="Enter token CA..."
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 text-base"
+                  />
                 </div>
+
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClose}
-                  className="hover:bg-vamp-red/10"
+                  onClick={handleFetchMetadata}
+                  disabled={isLaunching || !tokenCA}
+                  className="w-full bg-red-500 hover:bg-red-500/80 text-white font-bold h-12 text-base"
                 >
-                  <X className="w-5 h-5" />
+                  {isLaunching ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    'FETCH METADATA'
+                  )}
                 </Button>
               </div>
+            )}
 
+            {step === 'config' && tokenData && (
               <div className="space-y-6">
-                <Button
-                  variant="ghost"
-                  onClick={() => setMode('main')}
-                  className="mb-4 hover:bg-vamp-red/10"
-                >
-                  ← Back
-                </Button>
+                {/* Token Preview */}
+                <div className="p-6 rounded-xl border border-red-500/30 bg-red-500/10">
+                  <h3 className="text-2xl font-bold text-white mb-2">{tokenData.symbol}</h3>
+                  <p className="text-white/70 mb-4">{tokenData.name}</p>
+                  <p className="text-sm text-white/60">Supply: {tokenData.supply}</p>
+                </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Wallet</Label>
-                    <Select value={selectedWallet} onValueChange={setSelectedWallet} disabled={isLoadingWallets}>
-                      <SelectTrigger className="bg-input border-border h-12">
-                        <SelectValue placeholder={isLoadingWallets ? "Loading..." : "Select wallet"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {wallets.map((wallet) => (
-                          <SelectItem key={wallet.id} value={wallet.id.toString()}>
-                            {wallet.name} ({wallet.balance.toFixed(2)} SOL)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Launch Count</Label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {multiLaunchOptions.map((count) => (
-                        <Button
-                          key={count}
-                          variant={launchCount === count ? 'default' : 'outline'}
-                          onClick={() => setLaunchCount(count)}
+                {/* Wallet Selection */}
+                <div className="space-y-3">
+                  <Label className="text-lg font-semibold text-white/90">
+                    Select Dev Wallet ({devWallets.length})
+                  </Label>
+                  {devWallets.length === 0 ? (
+                    <div className="p-4 rounded-lg border border-dashed border-white/20 text-white/50 text-center">
+                      No dev wallets. Create one in WALLETS section
+                    </div>
+                  ) : (
+                    <div className="space-y-2 border border-white/10 rounded-xl p-4 max-h-40 overflow-y-auto">
+                      {devWallets.map((wallet) => (
+                        <button
+                          key={wallet.id}
+                          onClick={() => setSelectedWallet(wallet.id)}
                           className={cn(
-                            'h-12',
-                            launchCount === count
-                              ? 'bg-vamp-red hover:bg-vamp-red-hover'
-                              : 'border-vamp-red/30 hover:border-vamp-red/60 hover:bg-vamp-red/10'
+                            'w-full flex items-center justify-between p-3 rounded-lg transition-all',
+                            selectedWallet === wallet.id
+                              ? 'border-2 border-red-500 bg-red-500/10'
+                              : 'border border-white/10 hover:border-white/30 bg-white/5'
                           )}
                         >
-                          {count}x
-                        </Button>
+                          <div className="text-left">
+                            <div className="font-mono font-bold text-white">{wallet.name}</div>
+                            <div className="text-sm text-white/50">{wallet.address}</div>
+                          </div>
+                          {selectedWallet === wallet.id && (
+                            <Check className="w-5 h-5 text-red-500" />
+                          )}
+                        </button>
                       ))}
                     </div>
-                  </div>
+                  )}
+                </div>
 
+                {/* Action Buttons */}
+                <div className="flex gap-3">
                   <Button
-                    onClick={handleFastLaunch}
-                    disabled={isLaunching || !selectedWallet}
-                    className="w-full bg-vamp-red hover:bg-vamp-red-hover h-14 text-lg font-bold"
+                    onClick={() => setStep('input')}
+                    variant="outline"
+                    className="flex-1 border-white/20 h-11"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    onClick={handleLaunch}
+                    disabled={!selectedWallet || isLaunching}
+                    className="flex-1 bg-red-500 hover:bg-red-500/80 text-white font-bold h-11"
                   >
                     {isLaunching ? (
                       <>
-                        <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                        Launching {launchCount}x...
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Launching...
                       </>
                     ) : (
-                      <>
-                        <Rocket className="w-6 h-6 mr-2" />
-                        LAUNCH {launchCount}x
-                      </>
+                      'FAST LAUNCH'
                     )}
                   </Button>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <img src="/vamp-fangs-silver.png" alt="Vamp" className="w-10 h-10" />
-                  <h2 className="text-2xl font-mono font-bold text-vamp-red">VAMP</h2>
+            )}
+
+            {step === 'launch' && (
+              <div className="text-center space-y-4">
+                <div className="text-6xl mb-4">🚀</div>
+                <h3 className="text-2xl font-bold text-white">Launch Successful!</h3>
+                <p className="text-white/60">Redirecting to token page...</p>
+                <div className="flex justify-center gap-2 mt-6">
+                  <div className="w-3 h-3 rounded-full bg-red-500 animate-bounce"></div>
+                  <div className="w-3 h-3 rounded-full bg-red-500 animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-3 h-3 rounded-full bg-red-500 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClose}
-                  className="hover:bg-vamp-red/10"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
               </div>
-
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">Contract Address</Label>
-                  <Input
-                    placeholder="Enter Solana token CA..."
-                    value={tokenCA}
-                    onChange={(e) => setTokenCA(e.target.value)}
-                    className="bg-input border-border focus:border-vamp-red/50 font-mono h-12"
-                  />
-                </div>
-
-                {isFetching && (
-                  <div className="flex items-center justify-center gap-2 py-4">
-                    <Loader2 className="w-5 h-5 text-vamp-red animate-spin" />
-                    <span className="text-sm text-muted-foreground">Fetching token data...</span>
-                  </div>
-                )}
-
-                {error && !isFetching && (
-                  <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
-                    <span className="text-sm text-destructive">{error}</span>
-                  </div>
-                )}
-
-                {tokenMetadata && !isFetching && (
-                  <div className="space-y-4">
-                    <div className="flex gap-6 p-6 rounded-xl border border-vamp-red/20 bg-vamp-red/5">
-                      <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-vamp-red/30 flex-shrink-0">
-                        <img
-                          src={tokenMetadata.image_url}
-                          alt={tokenMetadata.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96"%3E%3Crect fill="%23333" width="96" height="96"/%3E%3C/svg%3E';
-                          }}
-                        />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-2xl font-mono font-bold text-foreground">
-                            {tokenMetadata.name}
-                          </h3>
-                          <span className="text-lg font-mono text-vamp-red">
-                            ${tokenMetadata.ticker}
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                          {tokenMetadata.description}
-                        </p>
-
-                        <div className="flex gap-3">
-                          {tokenMetadata.website && (
-                            <a
-                              href={tokenMetadata.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
-                            >
-                              <Globe className="w-5 h-5 text-muted-foreground" />
-                            </a>
-                          )}
-                          {tokenMetadata.twitter && (
-                            <a
-                              href={tokenMetadata.twitter}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
-                            >
-                              <Twitter className="w-5 h-5 text-muted-foreground" />
-                            </a>
-                          )}
-                          {tokenMetadata.telegram && (
-                            <a
-                              href={tokenMetadata.telegram}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-2 rounded-lg border border-border/50 hover:border-vamp-red/50 hover:bg-vamp-red/10 transition-colors"
-                            >
-                              <Send className="w-5 h-5 text-muted-foreground" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <Button
-                        onClick={() => setMode('fullEdit')}
-                        variant="outline"
-                        className="h-12 border-vamp-red/30 hover:border-vamp-red/60 hover:bg-vamp-red/10 font-bold"
-                      >
-                        EDIT
-                      </Button>
-                      <Button
-                        onClick={() => setMode('fastLaunch')}
-                        className="h-12 bg-vamp-red hover:bg-vamp-red-hover font-bold"
-                      >
-                        <Rocket className="w-5 h-5 mr-2" />
-                        FAST LAUNCH
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>

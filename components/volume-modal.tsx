@@ -1,37 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Play, Pause, Power, Zap } from 'lucide-react';
+import { X, Loader2, Play, Pause, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-
-interface VolumeSession {
-  id: string;
-  ca: string;
-  preset: 'organic' | 'fast' | 'turbo';
-  status: 'running' | 'paused';
-  wallets: number;
-}
+import { useWallets, useVolumeSessions } from '@/hooks/storage';
 
 interface VolumeModalProps {
   onClose: () => void;
 }
 
 export function VolumeModal({ onClose }: VolumeModalProps) {
+  const { wallets } = useWallets();
+  const { sessions, addSession, updateSession, deleteSession } = useVolumeSessions();
   const [step, setStep] = useState<'main' | 'sessions'>('main');
   const [tokenCA, setTokenCA] = useState('');
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [selectedPreset, setSelectedPreset] = useState<'organic' | 'fast' | 'turbo'>('organic');
   const [isStarting, setIsStarting] = useState(false);
-  const [sessions, setSessions] = useState<VolumeSession[]>([]);
 
-  const mockWallets = [
-    { id: '1', name: 'Bot 1', address: 'soL1abc...', balance: 2.5 },
-    { id: '2', name: 'Bot 2', address: 'soL2def...', balance: 1.8 },
-    { id: '3', name: 'Bot 3', address: 'soL3ghi...', balance: 3.2 },
-  ];
+  const volumeWallets = wallets.filter(w => w.type === 'volume');
 
   const presets = {
     organic: {
@@ -68,14 +58,15 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
     
     setIsStarting(true);
     setTimeout(() => {
-      const newSession: VolumeSession = {
+      const newSession = {
         id: Math.random().toString(),
         ca: tokenCA,
         preset: selectedPreset,
-        status: 'running',
-        wallets: selectedWallets.length,
+        status: 'running' as const,
+        wallets: selectedWallets,
+        createdAt: Date.now(),
       };
-      setSessions([newSession, ...sessions]);
+      addSession(newSession);
       
       setTokenCA('');
       setSelectedWallets([]);
@@ -85,16 +76,19 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
   };
 
   const toggleSessionPause = (id: string) => {
-    setSessions(sessions.map(s =>
-      s.id === id
-        ? { ...s, status: s.status === 'running' ? 'paused' : 'running' }
-        : s
-    ));
+    const session = sessions.find(s => s.id === id);
+    if (session) {
+      updateSession(id, {
+        status: session.status === 'running' ? 'paused' : 'running'
+      });
+    }
   };
 
   const stopSession = (id: string) => {
-    setSessions(sessions.filter(s => s.id !== id));
+    deleteSession(id);
   };
+
+  const activeSessions = sessions.filter(s => s.status === 'running' || s.status === 'paused');
 
   return (
     <>
@@ -147,7 +141,7 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                     : 'bg-white/10 border border-white/20 text-white hover:border-white/40'
                 )}
               >
-                Active Sessions ({sessions.length})
+                Active Sessions ({activeSessions.length})
               </button>
             </div>
 
@@ -189,27 +183,35 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
 
                 {/* Wallet Selection */}
                 <div className="space-y-3">
-                  <Label className="text-lg font-semibold text-white/90">Select Wallets</Label>
-                  <div className="space-y-2 border border-white/10 rounded-xl p-4 max-h-40 overflow-y-auto">
-                    {mockWallets.map((wallet) => (
-                      <label
-                        key={wallet.id}
-                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedWallets.includes(wallet.id)}
-                          onChange={() => toggleWallet(wallet.id)}
-                          className="w-5 h-5"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-mono font-bold text-white">{wallet.name}</div>
-                          <div className="text-sm text-white/50">{wallet.address}</div>
-                        </div>
-                        <div className="text-sm text-white/60">{wallet.balance} SOL</div>
-                      </label>
-                    ))}
-                  </div>
+                  <Label className="text-lg font-semibold text-white/90">
+                    Select Wallets ({volumeWallets.length})
+                  </Label>
+                  {volumeWallets.length === 0 ? (
+                    <div className="p-4 rounded-lg border border-dashed border-white/20 text-white/50 text-center">
+                      No volume wallets yet. Create one in WALLETS section
+                    </div>
+                  ) : (
+                    <div className="space-y-2 border border-white/10 rounded-xl p-4 max-h-40 overflow-y-auto">
+                      {volumeWallets.map((wallet) => (
+                        <label
+                          key={wallet.id}
+                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedWallets.includes(wallet.id)}
+                            onChange={() => toggleWallet(wallet.id)}
+                            className="w-5 h-5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-mono font-bold text-white">{wallet.name}</div>
+                            <div className="text-sm text-white/50">{wallet.address}</div>
+                          </div>
+                          <div className="text-sm text-white/60">{wallet.balance} SOL</div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                   <div className="text-sm text-white/60">{selectedWallets.length} selected</div>
                 </div>
 
@@ -234,10 +236,10 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {sessions.length === 0 ? (
+                {activeSessions.length === 0 ? (
                   <div className="p-8 text-center text-white/50">No active sessions</div>
                 ) : (
-                  sessions.map((session) => (
+                  activeSessions.map((session) => (
                     <div
                       key={session.id}
                       className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:border-white/30 transition-all"
@@ -261,7 +263,7 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                             {session.status === 'running' ? '🟢 RUNNING' : '🟡 PAUSED'}
                           </span>
                         </div>
-                        <div className="text-sm text-white/50">{session.wallets} wallets active</div>
+                        <div className="text-sm text-white/50">{session.wallets.length} wallets active</div>
                       </div>
 
                       <div className="flex gap-2">
