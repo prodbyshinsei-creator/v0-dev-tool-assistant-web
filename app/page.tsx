@@ -81,7 +81,7 @@ function ShaderBackground() {
       const width = canvas.width;
       const height = canvas.height;
       
-      time += 0.001;
+      time += 0.0015;
 
       const imageData = ctx.createImageData(width, height);
       const data = imageData.data;
@@ -90,18 +90,18 @@ function ShaderBackground() {
         for (let x = 0; x < width; x += 4) {
           const index = (y * width + x) * 4;
           
-          // Multi-octave noise
-          const noise1 = Math.sin(x * 0.01 + time * 2) * Math.cos(y * 0.01 + time);
-          const noise2 = Math.sin(x * 0.005 - time) * Math.cos(y * 0.005 + time * 0.5);
-          const noise3 = Math.sin(x * 0.002 + time * 0.3) * Math.cos(y * 0.002);
+          // Multi-octave noise with more variation
+          const noise1 = Math.sin(x * 0.01 + time * 2.5) * Math.cos(y * 0.01 + time * 1.3);
+          const noise2 = Math.sin(x * 0.005 - time * 1.8) * Math.cos(y * 0.005 + time * 0.7);
+          const noise3 = Math.sin(x * 0.002 + time * 0.5) * Math.cos(y * 0.002 + time);
           
-          const combined = (noise1 + noise2 * 0.5 + noise3 * 0.3) / 1.8;
-          const value = Math.floor((combined + 1) * 10);
+          const combined = (noise1 + noise2 * 0.6 + noise3 * 0.4) / 2.0;
+          const value = Math.floor((combined + 1) * 20);
           
-          // Dark red/purple tones
-          const r = Math.min(255, value + 15);
-          const g = Math.min(255, value);
-          const b = Math.min(255, value + 10);
+          // Dark red/crimson tones
+          const r = Math.min(255, value + 25);
+          const g = Math.min(255, value + 5);
+          const b = Math.min(255, value + 15);
 
           // Fill 4x4 block for performance
           for (let dy = 0; dy < 4; dy++) {
@@ -134,13 +134,15 @@ function ShaderBackground() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full"
-      style={{ opacity: 0.15 }}
+      style={{ opacity: 0.4 }}
     />
   );
 }
 
 export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [showVolumeModal, setShowVolumeModal] = useState(false);
+  const [showWalletsModal, setShowWalletsModal] = useState(false);
 
   const handleToolClick = (toolId: string, enabled: boolean) => {
     if (!enabled) return;
@@ -148,9 +150,9 @@ export default function Home() {
     if (toolId === 'vamp') {
       setSelectedTool('vamp');
     } else if (toolId === 'volume') {
-      alert('Volume Bot - Coming Soon!');
+      setShowVolumeModal(true);
     } else if (toolId === 'wallets') {
-      alert('Wallet Management - Coming Soon!');
+      setShowWalletsModal(true);
     }
   };
 
@@ -243,6 +245,87 @@ export default function Home() {
       {/* VAMP Modal */}
       {selectedTool === 'vamp' && (
         <VampModal onClose={() => setSelectedTool(null)} />
+      )}
+
+      {/* Volume Modal */}
+      {showVolumeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowVolumeModal(false)}
+          />
+          <div className="relative bg-card border-2 border-volume-blue/30 rounded-2xl max-w-md w-full p-8 shadow-2xl">
+            <button
+              onClick={() => setShowVolumeModal(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+            >
+              ✕
+            </button>
+            <div className="flex items-center gap-3 mb-6">
+              <img src="/vamp-blood.png" alt="Volume" className="w-10 h-10" />
+              <h2 className="text-2xl font-mono font-bold text-volume-blue">VOLUME</h2>
+            </div>
+            <div className="space-y-4">
+              <p className="text-muted-foreground">Volume Bot - Generate trading volume for your token</p>
+              <div className="p-4 rounded-lg bg-volume-blue/10 border border-volume-blue/30">
+                <p className="text-sm text-foreground mb-3">Features:</p>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>✓ Multi-wallet volume generation</li>
+                  <li>✓ Customizable amounts (0.01 - 100 SOL)</li>
+                  <li>✓ Real-time transaction monitoring</li>
+                  <li>✓ Pause/Resume sessions</li>
+                </ul>
+              </div>
+              <button
+                onClick={() => setShowVolumeModal(false)}
+                className="w-full bg-volume-blue hover:bg-volume-blue/80 text-foreground font-bold py-2 px-4 rounded-lg transition-colors"
+              >
+                Coming Soon
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wallets Modal */}
+      {showWalletsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowWalletsModal(false)}
+          />
+          <div className="relative bg-card border-2 border-wallet-green/30 rounded-2xl max-w-md w-full p-8 shadow-2xl">
+            <button
+              onClick={() => setShowWalletsModal(false)}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+            >
+              ✕
+            </button>
+            <div className="flex items-center gap-3 mb-6">
+              <img src="/vamp-blood.png" alt="Wallets" className="w-10 h-10" />
+              <h2 className="text-2xl font-mono font-bold text-wallet-green">WALLETS</h2>
+            </div>
+            <div className="space-y-4">
+              <p className="text-muted-foreground">Manage and monitor your Solana wallets</p>
+              <div className="p-4 rounded-lg bg-wallet-green/10 border border-wallet-green/30">
+                <p className="text-sm text-foreground mb-3">Features:</p>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>✓ Create & import wallets</li>
+                  <li>✓ Real-time balance tracking</li>
+                  <li>✓ Transaction history</li>
+                  <li>✓ Multi-signature support</li>
+                  <li>✓ Token portfolio overview</li>
+                </ul>
+              </div>
+              <button
+                onClick={() => setShowWalletsModal(false)}
+                className="w-full bg-wallet-green hover:bg-wallet-green/80 text-black font-bold py-2 px-4 rounded-lg transition-colors"
+              >
+                Coming Soon
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
