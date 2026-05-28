@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { VampModal } from '@/components/vamp-modal';
 import { VolumeModal } from '@/components/volume-modal';
 import { WalletsModal } from '@/components/wallets-modal';
+import { PortfolioModal } from '@/components/portfolio-modal';
 import { Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,16 +44,7 @@ const tools = [
     icon: '/vamp-blood.png',
     hoverColor: 'hover:border-white/60 hover:bg-white/10',
     textColor: 'group-hover:text-white/90',
-    enabled: false,
-  },
-  {
-    id: 'web3',
-    name: 'WEB3 ПРОЕКТЫ',
-    description: 'Coming Soon',
-    icon: null,
-    hoverColor: 'hover:border-white/60 hover:bg-white/10',
-    textColor: 'group-hover:text-white/90',
-    enabled: false,
+    enabled: true,
   },
 ];
 
@@ -62,7 +54,7 @@ const comingSoonBlocks = [
   { id: 3, label: '?' },
 ];
 
-// Interactive Shader with Mouse Tracking
+// Interactive Shader
 function InteractiveShaderBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mouseX, setMouseX] = useState(0);
@@ -187,7 +179,6 @@ function InteractiveShaderBackground() {
         style={{ opacity: 0.8 }}
       />
 
-      {/* Theme Switcher Button */}
       <div className="fixed bottom-8 right-8 z-40">
         <button
           onClick={() => setShowColorPicker(!showColorPicker)}
@@ -241,12 +232,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Interactive Shader Background */}
       <InteractiveShaderBackground />
 
-      {/* Content */}
       <div className="relative z-10">
-        {/* Header */}
         <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/60 backdrop-blur-2xl">
           <div className="container mx-auto flex h-16 items-center justify-center px-6">
             <div className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
@@ -266,11 +254,9 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Main Content */}
         <main className="pt-24 pb-12 px-6">
           <div className="container mx-auto max-w-7xl">
-            {/* Tool Blocks Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
               {tools.map((tool) => (
                 <button
                   key={tool.id}
@@ -312,7 +298,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Coming Soon Blocks */}
             <div className="flex justify-center gap-8">
               {comingSoonBlocks.map((block) => (
                 <div
@@ -329,20 +314,10 @@ export default function Home() {
         </main>
       </div>
 
-      {/* VAMP Modal */}
-      {selectedTool === 'vamp' && (
-        <VampModal onClose={() => setSelectedTool(null)} />
-      )}
-
-      {/* Volume Modal */}
-      {selectedTool === 'volume' && (
-        <VolumeModal onClose={() => setSelectedTool(null)} />
-      )}
-
-      {/* Wallets Modal */}
-      {selectedTool === 'wallets' && (
-        <WalletsModal onClose={() => setSelectedTool(null)} />
-      )}
+      {selectedTool === 'vamp' && <VampModal onClose={() => setSelectedTool(null)} />}
+      {selectedTool === 'volume' && <VolumeModal onClose={() => setSelectedTool(null)} />}
+      {selectedTool === 'wallets' && <WalletsModal onClose={() => setSelectedTool(null)} />}
+      {selectedTool === 'portfolio' && <PortfolioModal onClose={() => setSelectedTool(null)} />}
     </div>
   );
 }

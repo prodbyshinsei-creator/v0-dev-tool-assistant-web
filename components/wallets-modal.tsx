@@ -1,58 +1,45 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Plus, Upload, Trash2, Key } from 'lucide-react';
+import { X, Plus, Upload, Trash2, Key, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-
-interface Wallet {
-  id: string;
-  name: string;
-  address: string;
-  balance: number;
-  type: 'dev' | 'volume';
-}
+import { useWallets, StoredWallet } from '@/hooks/storage';
 
 interface WalletsModalProps {
   onClose: () => void;
 }
 
 export function WalletsModal({ onClose }: WalletsModalProps) {
+  const { wallets, addWallet, deleteWallet } = useWallets();
   const [tab, setTab] = useState<'dev' | 'volume'>('dev');
   const [showImport, setShowImport] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [importKey, setImportKey] = useState('');
   const [walletName, setWalletName] = useState('');
   const [newWalletName, setNewWalletName] = useState('');
-  const [showPrivateKey, setShowPrivateKey] = useState<string | null>(null);
   const [generatedKey, setGeneratedKey] = useState('');
-
-  const [wallets, setWallets] = useState<Wallet[]>([
-    {
-      id: '1',
-      name: 'Dev Wallet 1',
-      address: '6w5kU8WqQwWHzniJQzJuLXE8R2PuU4ENPC1S5zw7pump',
-      balance: 5.23,
-      type: 'dev',
-    },
-  ]);
+  const [showKeyModal, setShowKeyModal] = useState<string | null>(null);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const filteredWallets = wallets.filter(w => w.type === tab);
 
   const handleImport = () => {
     if (!importKey || !walletName) return;
     
-    const newWallet: Wallet = {
+    const newWallet: StoredWallet = {
       id: Math.random().toString(),
       name: walletName,
-      address: importKey.slice(0, 44),
+      address: importKey.slice(0, 44).padEnd(44, '...'),
       balance: 0,
       type: tab,
+      privateKeyEncrypted: importKey,
     };
     
-    setWallets([...wallets, newWallet]);
+    addWallet(newWallet);
     setImportKey('');
     setWalletName('');
     setShowImport(false);
@@ -64,20 +51,32 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
     const mockKey = 'PrIVaTe_KeY_bAsE58_' + Math.random().toString(36).substring(7).toUpperCase();
     setGeneratedKey(mockKey);
     
-    const newWallet: Wallet = {
+    const newWallet: StoredWallet = {
       id: Math.random().toString(),
       name: newWalletName,
       address: 'soL' + Math.random().toString(36).substring(2, 40).toUpperCase(),
       balance: 0,
       type: tab,
+      privateKeyEncrypted: mockKey,
     };
     
-    setWallets([...wallets, newWallet]);
+    addWallet(newWallet);
     setNewWalletName('');
+    setShowCreate(false);
+    setTimeout(() => setGeneratedKey(''), 2000);
   };
 
-  const handleDelete = (id: string) => {
-    setWallets(wallets.filter(w => w.id !== id));
+  const handleShowKey = (walletId: string) => {
+    setShowKeyModal(walletId);
+    setPasswordInput('');
+    setShowPassword(false);
+  };
+
+  const handleRevealKey = () => {
+    // TODO: Реальная проверка пароля через бэкенд
+    if (passwordInput.length > 0) {
+      setShowPassword(true);
+    }
   };
 
   return (
@@ -120,7 +119,7 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
                     : 'bg-white/10 border border-white/20 text-white hover:border-white/40'
                 )}
               >
-                Dev Wallets
+                Dev Wallets ({wallets.filter(w => w.type === 'dev').length})
               </button>
               <button
                 onClick={() => setTab('volume')}
@@ -131,7 +130,7 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
                     : 'bg-white/10 border border-white/20 text-white hover:border-white/40'
                 )}
               >
-                Volume Wallets
+                Volume Wallets ({wallets.filter(w => w.type === 'volume').length})
               </button>
             </div>
 
@@ -157,7 +156,7 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setShowPrivateKey(showPrivateKey === wallet.id ? null : wallet.id)}
+                        onClick={() => handleShowKey(wallet.id)}
                         className="border-green-400/30 hover:border-green-400/60 h-9"
                         title="Show private key"
                       >
@@ -166,144 +165,203 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDelete(wallet.id)}
+                        onClick={() => deleteWallet(wallet.id)}
                         className="border-destructive/30 hover:border-destructive/60 hover:bg-destructive/10 text-destructive h-9"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-
-                    {showPrivateKey === wallet.id && (
-                      <div className="absolute mt-12 bg-black/90 border border-white/20 rounded-lg p-4 text-white/80 text-sm max-w-xs">
-                        <div className="font-mono break-all">Private Key: mock_key_****</div>
-                      </div>
-                    )}
                   </div>
                 ))
               )}
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
-              {!showImport && !showCreate && (
-                <>
-                  <Button
-                    onClick={() => setShowImport(true)}
-                    className="flex-1 bg-green-400 hover:bg-green-400/80 text-black font-bold py-3 h-12 text-base"
-                  >
-                    <Upload className="w-5 h-5 mr-2" />
-                    IMPORT
-                  </Button>
-                  <Button
-                    onClick={() => setShowCreate(true)}
-                    className="flex-1 bg-blue-400 hover:bg-blue-400/80 text-black font-bold py-3 h-12 text-base"
-                  >
-                    <Plus className="w-5 h-5 mr-2" />
-                    CREATE
-                  </Button>
-                </>
-              )}
+            {!showImport && !showCreate && (
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowImport(true)}
+                  className="flex-1 bg-green-400 hover:bg-green-400/80 text-black font-bold py-3 h-12 text-base"
+                >
+                  <Upload className="w-5 h-5 mr-2" />
+                  IMPORT
+                </Button>
+                <Button
+                  onClick={() => setShowCreate(true)}
+                  className="flex-1 bg-blue-400 hover:bg-blue-400/80 text-black font-bold py-3 h-12 text-base"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  CREATE
+                </Button>
+              </div>
+            )}
 
-              {showImport && (
-                <div className="w-full space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-white/80">Private Key (Base58)</Label>
-                    <Input
-                      value={importKey}
-                      onChange={(e) => setImportKey(e.target.value)}
-                      placeholder="Paste your base58 private key here"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-10"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-white/80">Wallet Name</Label>
-                    <Input
-                      value={walletName}
-                      onChange={(e) => setWalletName(e.target.value)}
-                      placeholder="Give it a name"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-10"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={handleImport}
-                      disabled={!importKey || !walletName}
-                      className="flex-1 bg-green-400 hover:bg-green-400/80 text-black font-bold h-10"
-                    >
-                      Import
-                    </Button>
-                    <Button
-                      onClick={() => setShowImport(false)}
-                      variant="outline"
-                      className="flex-1 border-white/20 h-10"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
+            {showImport && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-white/80">Private Key (Base58)</Label>
+                  <Input
+                    value={importKey}
+                    onChange={(e) => setImportKey(e.target.value)}
+                    placeholder="Paste your base58 private key here"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-10"
+                  />
                 </div>
-              )}
+                <div className="space-y-2">
+                  <Label className="text-white/80">Wallet Name</Label>
+                  <Input
+                    value={walletName}
+                    onChange={(e) => setWalletName(e.target.value)}
+                    placeholder="Give it a name"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-10"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleImport}
+                    disabled={!importKey || !walletName}
+                    className="flex-1 bg-green-400 hover:bg-green-400/80 text-black font-bold h-10"
+                  >
+                    Import
+                  </Button>
+                  <Button
+                    onClick={() => setShowImport(false)}
+                    variant="outline"
+                    className="flex-1 border-white/20 h-10"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
 
-              {showCreate && (
-                <div className="w-full space-y-4">
-                  {!generatedKey ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label className="text-white/80">Wallet Name</Label>
-                        <Input
-                          value={newWalletName}
-                          onChange={(e) => setNewWalletName(e.target.value)}
-                          placeholder="Name for new wallet"
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-10"
-                        />
-                      </div>
-                      <div className="flex gap-3">
-                        <Button
-                          onClick={handleCreate}
-                          disabled={!newWalletName}
-                          className="flex-1 bg-blue-400 hover:bg-blue-400/80 text-black font-bold h-10"
-                        >
-                          Generate
-                        </Button>
-                        <Button
-                          onClick={() => setShowCreate(false)}
-                          variant="outline"
-                          className="flex-1 border-white/20 h-10"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="p-4 rounded-lg bg-blue-400/10 border border-blue-400/30">
-                        <p className="text-sm text-white/80 mb-2">Your Private Key (save it safely!):</p>
-                        <p className="font-mono text-sm text-white break-all mb-4">{generatedKey}</p>
-                        <Button
-                          onClick={() => {
-                            navigator.clipboard.writeText(generatedKey);
-                          }}
-                          className="w-full bg-blue-400 hover:bg-blue-400/80 text-black font-bold h-10"
-                        >
-                          Copy to Clipboard
-                        </Button>
-                      </div>
+            {showCreate && (
+              <div className="space-y-4">
+                {!generatedKey ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-white/80">Wallet Name</Label>
+                      <Input
+                        value={newWalletName}
+                        onChange={(e) => setNewWalletName(e.target.value)}
+                        placeholder="Name for new wallet"
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-10"
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleCreate}
+                        disabled={!newWalletName}
+                        className="flex-1 bg-blue-400 hover:bg-blue-400/80 text-black font-bold h-10"
+                      >
+                        Generate
+                      </Button>
+                      <Button
+                        onClick={() => setShowCreate(false)}
+                        variant="outline"
+                        className="flex-1 border-white/20 h-10"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-4 rounded-lg bg-blue-400/10 border border-blue-400/30">
+                      <p className="text-sm text-white/80 mb-2">Your Private Key (save it safely!):</p>
+                      <p className="font-mono text-sm text-white break-all mb-4">{generatedKey}</p>
                       <Button
                         onClick={() => {
-                          setGeneratedKey('');
-                          setShowCreate(false);
+                          navigator.clipboard.writeText(generatedKey);
                         }}
-                        className="w-full bg-green-400 hover:bg-green-400/80 text-black font-bold h-10"
+                        className="w-full bg-blue-400 hover:bg-blue-400/80 text-black font-bold h-10"
                       >
-                        Done
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy to Clipboard
                       </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setGeneratedKey('');
+                        setShowCreate(false);
+                      }}
+                      className="w-full bg-green-400 hover:bg-green-400/80 text-black font-bold h-10"
+                    >
+                      Done
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Password Modal for Private Key */}
+      {showKeyModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            onClick={() => setShowKeyModal(null)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div
+              className="bg-black/80 backdrop-blur-2xl border-2 border-white/20 rounded-2xl max-w-sm w-full pointer-events-auto shadow-2xl p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-bold text-white mb-4">Enter Password</h3>
+              <p className="text-white/70 mb-4">Enter your password to reveal the private key</p>
+              
+              <div className="space-y-4">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="Password"
+                  className="bg-white/10 border-white/20 text-white h-11"
+                />
+                
+                {showPassword && (
+                  <div className="p-4 rounded-lg bg-green-400/10 border border-green-400/30">
+                    <p className="text-sm text-white/80 mb-2">Private Key:</p>
+                    <p className="font-mono text-xs text-white break-all">
+                      {wallets.find(w => w.id === showKeyModal)?.privateKeyEncrypted}
+                    </p>
+                    <Button
+                      onClick={() => {
+                        const wallet = wallets.find(w => w.id === showKeyModal);
+                        if (wallet) {
+                          navigator.clipboard.writeText(wallet.privateKeyEncrypted);
+                        }
+                      }}
+                      className="w-full mt-3 bg-green-400 hover:bg-green-400/80 text-black font-bold h-9"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy
+                    </Button>
+                  </div>
+                )}
+                
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleRevealKey}
+                    className="flex-1 bg-green-400 hover:bg-green-400/80 text-black font-bold h-10"
+                  >
+                    Reveal
+                  </Button>
+                  <Button
+                    onClick={() => setShowKeyModal(null)}
+                    variant="outline"
+                    className="flex-1 border-white/20 h-10"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
