@@ -12,7 +12,8 @@ const tools = [
     name: 'VAMP',
     description: 'Token Launch Platform',
     icon: '/vamp-fangs-silver.png',
-    hoverColor: 'hover:border-vamp-red/60 hover:bg-vamp-red/5',
+    hoverColor: 'hover:border-red-500/60 hover:bg-red-500/5',
+    textColor: 'group-hover:text-red-500',
     enabled: true,
   },
   {
@@ -20,7 +21,8 @@ const tools = [
     name: 'VOLUME',
     description: 'Volume Bot',
     icon: '/vamp-blood.png',
-    hoverColor: 'hover:border-volume-blue/60 hover:bg-volume-blue/5',
+    hoverColor: 'hover:border-blue-400/60 hover:bg-blue-400/5',
+    textColor: 'group-hover:text-blue-400',
     enabled: true,
   },
   {
@@ -28,7 +30,8 @@ const tools = [
     name: 'WALLETS',
     description: 'Wallet Management',
     icon: '/vamp-blood.png',
-    hoverColor: 'hover:border-wallet-green/60 hover:bg-wallet-green/5',
+    hoverColor: 'hover:border-green-400/60 hover:bg-green-400/5',
+    textColor: 'group-hover:text-green-400',
     enabled: true,
   },
   {
@@ -37,6 +40,7 @@ const tools = [
     description: 'Portfolio Tracking',
     icon: '/vamp-blood.png',
     hoverColor: 'hover:border-white/40 hover:bg-white/5',
+    textColor: 'group-hover:text-white',
     enabled: false,
   },
   {
@@ -45,6 +49,7 @@ const tools = [
     description: 'Coming Soon',
     icon: null,
     hoverColor: 'hover:border-white/40 hover:bg-white/5',
+    textColor: 'group-hover:text-white',
     enabled: false,
   },
 ];
@@ -277,17 +282,21 @@ export default function Home() {
                 >
                   <div className="flex flex-col items-center gap-4 text-center">
                     {tool.icon ? (
-                      <img src={tool.icon} alt={tool.name} className="w-16 h-16" />
+                      <img src={tool.icon} alt={tool.name} className="w-24 h-24" />
                     ) : (
-                      <div className="w-16 h-16 rounded-lg bg-border/20 flex items-center justify-center">
-                        <span className="text-3xl font-mono font-bold text-muted-foreground">
+                      <div className="w-24 h-24 flex items-center justify-center">
+                        <span className="text-5xl font-mono font-bold text-muted-foreground group-hover:text-white/80 transition-colors">
                           {tool.name[0]}
                         </span>
                       </div>
                     )}
                     
                     <div>
-                      <h3 className="text-2xl font-mono font-bold mb-1 text-foreground">
+                      <h3 className={cn(
+                        'text-4xl font-mono font-bold mb-2 transition-colors duration-300',
+                        tool.textColor,
+                        'text-foreground'
+                      )}>
                         {tool.name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
