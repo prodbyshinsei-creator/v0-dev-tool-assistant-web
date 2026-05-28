@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { VampModal } from '@/components/vamp-modal';
+import { VolumePanel } from '@/components/volume-panel';
 import { cn } from '@/lib/utils';
 
 const tools = [
@@ -54,7 +55,7 @@ const comingSoonBlocks = [
   { id: 3, label: '?' },
 ];
 
-// Shader Background Component
+// Improved Shader Background with Waves
 function ShaderBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -76,36 +77,33 @@ function ShaderBackground() {
     resize();
     window.addEventListener('resize', resize);
 
-    // Simple perlin-like noise animation
+    // Waves instead of noise for more organic feel
     const render = () => {
       const width = canvas.width;
       const height = canvas.height;
       
-      time += 0.0015;
+      time += 0.002;
 
       const imageData = ctx.createImageData(width, height);
       const data = imageData.data;
 
-      for (let y = 0; y < height; y += 4) {
-        for (let x = 0; x < width; x += 4) {
-          const index = (y * width + x) * 4;
+      for (let y = 0; y < height; y += 2) {
+        for (let x = 0; x < width; x += 2) {
+          // Multiple wave layers for complex animation
+          const wave1 = Math.sin((x + time * 100) * 0.02) * Math.cos((y + time * 80) * 0.015) * 0.8;
+          const wave2 = Math.sin((x - time * 60) * 0.008 + y * 0.01) * 0.6;
+          const wave3 = Math.cos((x + y) * 0.005 + time * 0.5) * 0.4;
           
-          // Multi-octave noise with more variation
-          const noise1 = Math.sin(x * 0.01 + time * 2.5) * Math.cos(y * 0.01 + time * 1.3);
-          const noise2 = Math.sin(x * 0.005 - time * 1.8) * Math.cos(y * 0.005 + time * 0.7);
-          const noise3 = Math.sin(x * 0.002 + time * 0.5) * Math.cos(y * 0.002 + time);
+          const combined = (wave1 + wave2 + wave3) / 2.2;
+          const value = Math.floor((combined + 1) * 40);
           
-          const combined = (noise1 + noise2 * 0.6 + noise3 * 0.4) / 2.0;
-          const value = Math.floor((combined + 1) * 20);
-          
-          // Dark red/crimson tones
-          const r = Math.min(255, value + 25);
-          const g = Math.min(255, value + 5);
-          const b = Math.min(255, value + 15);
+          // Brighter crimson/red tones
+          const r = Math.min(255, value + 70);
+          const g = Math.min(255, value + 20);
+          const b = Math.min(255, value + 50);
 
-          // Fill 4x4 block for performance
-          for (let dy = 0; dy < 4; dy++) {
-            for (let dx = 0; dx < 4; dx++) {
+          for (let dy = 0; dy < 2; dy++) {
+            for (let dx = 0; dx < 2; dx++) {
               const i = ((y + dy) * width + (x + dx)) * 4;
               if (i < data.length) {
                 data[i] = r;
@@ -134,14 +132,13 @@ function ShaderBackground() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full h-full"
-      style={{ opacity: 0.4 }}
+      style={{ opacity: 0.5 }}
     />
   );
 }
 
 export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
-  const [showVolumeModal, setShowVolumeModal] = useState(false);
   const [showWalletsModal, setShowWalletsModal] = useState(false);
 
   const handleToolClick = (toolId: string, enabled: boolean) => {
@@ -150,7 +147,7 @@ export default function Home() {
     if (toolId === 'vamp') {
       setSelectedTool('vamp');
     } else if (toolId === 'volume') {
-      setShowVolumeModal(true);
+      setSelectedTool('volume');
     } else if (toolId === 'wallets') {
       setShowWalletsModal(true);
     }
@@ -247,44 +244,9 @@ export default function Home() {
         <VampModal onClose={() => setSelectedTool(null)} />
       )}
 
-      {/* Volume Modal */}
-      {showVolumeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowVolumeModal(false)}
-          />
-          <div className="relative bg-card border-2 border-volume-blue/30 rounded-2xl max-w-md w-full p-8 shadow-2xl">
-            <button
-              onClick={() => setShowVolumeModal(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
-            <div className="flex items-center gap-3 mb-6">
-              <img src="/vamp-blood.png" alt="Volume" className="w-10 h-10" />
-              <h2 className="text-2xl font-mono font-bold text-volume-blue">VOLUME</h2>
-            </div>
-            <div className="space-y-4">
-              <p className="text-muted-foreground">Volume Bot - Generate trading volume for your token</p>
-              <div className="p-4 rounded-lg bg-volume-blue/10 border border-volume-blue/30">
-                <p className="text-sm text-foreground mb-3">Features:</p>
-                <ul className="text-sm text-muted-foreground space-y-2">
-                  <li>✓ Multi-wallet volume generation</li>
-                  <li>✓ Customizable amounts (0.01 - 100 SOL)</li>
-                  <li>✓ Real-time transaction monitoring</li>
-                  <li>✓ Pause/Resume sessions</li>
-                </ul>
-              </div>
-              <button
-                onClick={() => setShowVolumeModal(false)}
-                className="w-full bg-volume-blue hover:bg-volume-blue/80 text-foreground font-bold py-2 px-4 rounded-lg transition-colors"
-              >
-                Coming Soon
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Volume Panel */}
+      {selectedTool === 'volume' && (
+        <VolumePanel onBack={() => setSelectedTool(null)} />
       )}
 
       {/* Wallets Modal */}

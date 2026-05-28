@@ -1,278 +1,353 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Activity, Play, Pause, Square, Zap, Clock, Leaf } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Loader2, Trash2, Play, Pause, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Header } from '@/components/header';
-import { mockVolumeWallets, shortenAddress } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+interface WalletType {
+  id: number;
+  name: string;
+  address: string;
+  balance: number;
+}
+
+interface VolumeSession {
+  id: string;
+  ca: string;
+  status: 'running' | 'paused' | 'stopped';
+  txs: number;
+  fees_sol: number;
+  wallets_count: number;
+}
 
 interface VolumePanelProps {
   onBack: () => void;
 }
 
-type VolumeMode = 'speed' | 'classic' | 'organic';
-type BotStatus = 'idle' | 'running' | 'paused';
-
-const modeConfig = {
-  speed: { icon: Zap, label: 'Speed Mode', description: 'Fast transactions' },
-  classic: { icon: Clock, label: 'Classic', description: 'Balanced approach' },
-  organic: { icon: Leaf, label: 'Organic', description: 'Natural patterns' },
-};
-
 export function VolumePanel({ onBack }: VolumePanelProps) {
   const [tokenCA, setTokenCA] = useState('');
-  const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
-  const [mode, setMode] = useState<VolumeMode>('classic');
-  const [status, setStatus] = useState<BotStatus>('idle');
-  const [stats, setStats] = useState({ txCount: 0, feesSpent: 0 });
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedWallets, setSelectedWallets] = useState<number[]>([]);
+  const [minSol, setMinSol] = useState('0.01');
+  const [maxSol, setMaxSol] = useState('0.05');
+  
+  const [wallets, setWallets] = useState<WalletType[]>([]);
+  const [isLoadingWallets, setIsLoadingWallets] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [sessions, setSessions] = useState<VolumeSession[]>([]);
 
-  const toggleWallet = (walletId: string) => {
-    setSelectedWallets((prev) =>
-      prev.includes(walletId)
-        ? prev.filter((id) => id !== walletId)
-        : [...prev, walletId]
-    );
-  };
-
-  const selectAll = () => {
-    if (selectedWallets.length === mockVolumeWallets.length) {
-      setSelectedWallets([]);
-    } else {
-      setSelectedWallets(mockVolumeWallets.map((w) => w.id));
-    }
-  };
-
-  const handleStart = () => {
-    if (!tokenCA || selectedWallets.length === 0) return;
-    setStatus('running');
-  };
-
-  const handlePause = () => {
-    setStatus('paused');
-  };
-
-  const handleResume = () => {
-    setStatus('running');
-  };
-
-  const handleStop = () => {
-    setStatus('idle');
-    setStats({ txCount: 0, feesSpent: 0 });
-  };
-
-  // Simulate running stats
   useEffect(() => {
-    if (status === 'running') {
-      intervalRef.current = setInterval(() => {
-        const txIncrement = mode === 'speed' ? 3 : mode === 'classic' ? 2 : 1;
-        const feeIncrement = mode === 'speed' ? 0.002 : mode === 'classic' ? 0.001 : 0.0005;
-        
-        setStats((prev) => ({
-          txCount: prev.txCount + txIncrement,
-          feesSpent: prev.feesSpent + feeIncrement,
-        }));
-      }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    }
+    loadWallets();
+  }, []);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+  const loadWallets = async () => {
+    try {
+      setIsLoadingWallets(true);
+      const response = await fetch(`${API_URL}/wallets?user_id=1&wallet_type=volume`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.wallets) {
+          setWallets(data.wallets);
+        }
       }
-    };
-  }, [status, mode]);
+    } catch (error) {
+      console.log('Backend unavailable');
+    } finally {
+      setIsLoadingWallets(false);
+    }
+  };
+
+  const toggleWallet = (walletId: number) => {
+    if (selectedWallets.includes(walletId)) {
+      setSelectedWallets(selectedWallets.filter(id => id !== walletId));
+    } else {
+      setSelectedWallets([...selectedWallets, walletId]);
+    }
+  };
+
+  const handleStartSession = async () => {
+    if (!tokenCA || selectedWallets.length === 0) return;
+    
+    setIsStarting(true);
+
+    try {
+      const walletAddresses = wallets
+        .filter(w => selectedWallets.includes(w.id))
+        .map(w => w.address);
+
+      const response = await fetch(`${API_URL}/volume/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ca: tokenCA,
+          wallet_addresses: walletAddresses,
+          min_sol: parseFloat(minSol),
+          max_sol: parseFloat(maxSol),
+          user_id: 1,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.session_id) {
+          const newSession: VolumeSession = {
+            id: data.session_id,
+            ca: tokenCA,
+            status: 'running',
+            txs: 0,
+            fees_sol: 0,
+            wallets_count: selectedWallets.length,
+          };
+          setSessions([newSession, ...sessions]);
+          
+          setTokenCA('');
+          setSelectedWallets([]);
+          setMinSol('0.01');
+          setMaxSol('0.05');
+          
+          setIsStarting(false);
+          return;
+        }
+      }
+
+      throw new Error('API unavailable');
+    } catch (error) {
+      console.log('Mock session start');
+      setTimeout(() => {
+        const newSession: VolumeSession = {
+          id: `session-${Date.now()}`,
+          ca: tokenCA,
+          status: 'running',
+          txs: 0,
+          fees_sol: 0,
+          wallets_count: selectedWallets.length,
+        };
+        setSessions([newSession, ...sessions]);
+        
+        setTokenCA('');
+        setSelectedWallets([]);
+        setIsStarting(false);
+      }, 1000);
+    }
+  };
+
+  const toggleSessionPause = async (sessionId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/volume/pause/${sessionId}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        setSessions(sessions.map(s => 
+          s.id === sessionId 
+            ? { ...s, status: s.status === 'running' ? 'paused' : 'running' }
+            : s
+        ));
+      }
+    } catch (error) {
+      console.log('Mock pause');
+      setSessions(sessions.map(s => 
+        s.id === sessionId 
+          ? { ...s, status: s.status === 'running' ? 'paused' : 'running' }
+          : s
+      ));
+    }
+  };
+
+  const stopSession = async (sessionId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/volume/stop/${sessionId}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        setSessions(sessions.filter(s => s.id !== sessionId));
+      }
+    } catch (error) {
+      console.log('Mock stop');
+      setSessions(sessions.filter(s => s.id !== sessionId));
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header title="VOLUME BOT" showBack onBack={onBack} variant="volume" />
-
-      <main className="flex-1 container max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Config Section */}
-        <section className="p-4 rounded-lg border border-volume-blue/30 bg-card space-y-4">
-          <div className="flex items-center gap-2 text-volume-blue">
-            <Activity className="w-5 h-5" />
-            <h2 className="font-mono font-bold">Configuration</h2>
+      <Header title="VOLUME" showBack onBack={onBack} variant="volume" />
+      
+      <main className="flex-1 container max-w-3xl mx-auto px-4 py-6 space-y-6">
+        {/* Start New Session */}
+        <section className="p-6 rounded-lg border border-volume-blue/30 bg-card space-y-5">
+          <div className="flex items-center gap-2 text-volume-blue mb-2">
+            <img src="/vamp-blood.png" alt="Volume" className="w-8 h-8" />
+            <h2 className="font-mono font-bold text-xl">New Session</h2>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="vol-token-ca" className="text-sm text-muted-foreground">
-                Token CA
-              </Label>
-              <Input
-                id="vol-token-ca"
-                placeholder="Enter token contract address..."
-                value={tokenCA}
-                onChange={(e) => setTokenCA(e.target.value)}
-                disabled={status !== 'idle'}
-                className="bg-input border-border focus:border-volume-blue/50 font-mono text-sm"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Token Contract Address</Label>
+            <Input
+              placeholder="Enter token CA..."
+              value={tokenCA}
+              onChange={(e) => setTokenCA(e.target.value)}
+              className="bg-input border-border focus:border-volume-blue/50 font-mono text-sm"
+            />
+          </div>
 
-            {/* Wallet Selection */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm text-muted-foreground">Select Wallets</Label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={selectAll}
-                  disabled={status !== 'idle'}
-                  className="text-xs text-volume-blue hover:text-volume-blue-glow"
-                >
-                  {selectedWallets.length === mockVolumeWallets.length ? 'Deselect All' : 'Select All'}
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {mockVolumeWallets.map((wallet) => (
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Volume Wallets</Label>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {isLoadingWallets ? (
+                <div className="text-sm text-muted-foreground">Loading wallets...</div>
+              ) : wallets.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No volume wallets found. Create one first.</div>
+              ) : (
+                wallets.map((wallet) => (
                   <label
                     key={wallet.id}
-                    className={cn(
-                      'flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors',
-                      selectedWallets.includes(wallet.id)
-                        ? 'border-volume-blue/60 bg-volume-blue/10'
-                        : 'border-border hover:border-volume-blue/30',
-                      status !== 'idle' && 'opacity-50 cursor-not-allowed'
-                    )}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-volume-blue/50 cursor-pointer transition-colors"
                   >
-                    <Checkbox
+                    <input
+                      type="checkbox"
                       checked={selectedWallets.includes(wallet.id)}
-                      onCheckedChange={() => toggleWallet(wallet.id)}
-                      disabled={status !== 'idle'}
-                      className="data-[state=checked]:bg-volume-blue data-[state=checked]:border-volume-blue"
+                      onChange={() => toggleWallet(wallet.id)}
+                      className="w-4 h-4"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{wallet.name}</div>
+                      <div className="font-mono text-sm font-bold">{wallet.name}</div>
                       <div className="text-xs text-muted-foreground font-mono">
-                        {shortenAddress(wallet.address)}
+                        {wallet.address.slice(0, 8)}...{wallet.address.slice(-8)}
                       </div>
                     </div>
-                    <div className="text-xs text-volume-blue font-mono">
-                      {wallet.balance.toFixed(2)}
-                    </div>
+                    <div className="text-sm text-muted-foreground">{wallet.balance.toFixed(2)} SOL</div>
                   </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Mode Selection */}
-            <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Mode</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {(Object.keys(modeConfig) as VolumeMode[]).map((m) => {
-                  const { icon: Icon, label, description } = modeConfig[m];
-                  return (
-                    <button
-                      key={m}
-                      onClick={() => setMode(m)}
-                      disabled={status !== 'idle'}
-                      className={cn(
-                        'flex flex-col items-center gap-1 p-3 rounded border transition-colors',
-                        mode === m
-                          ? 'border-volume-blue/60 bg-volume-blue/10'
-                          : 'border-border hover:border-volume-blue/30',
-                        status !== 'idle' && 'opacity-50 cursor-not-allowed'
-                      )}
-                    >
-                      <Icon className={cn('w-5 h-5', mode === m ? 'text-volume-blue' : 'text-muted-foreground')} />
-                      <span className={cn('text-sm font-medium', mode === m && 'text-volume-blue')}>{label}</span>
-                      <span className="text-[10px] text-muted-foreground">{description}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Controls */}
-            <div className="flex gap-2">
-              {status === 'idle' && (
-                <Button
-                  onClick={handleStart}
-                  disabled={!tokenCA || selectedWallets.length === 0}
-                  className="flex-1 bg-volume-blue hover:bg-volume-blue-hover text-foreground font-bold"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Start
-                </Button>
-              )}
-              {status === 'running' && (
-                <Button
-                  onClick={handlePause}
-                  variant="outline"
-                  className="flex-1 border-yellow-500/50 hover:bg-yellow-500/10 text-yellow-500"
-                >
-                  <Pause className="w-4 h-4 mr-2" />
-                  Pause
-                </Button>
-              )}
-              {status === 'paused' && (
-                <Button
-                  onClick={handleResume}
-                  className="flex-1 bg-volume-blue hover:bg-volume-blue-hover text-foreground font-bold"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Resume
-                </Button>
-              )}
-              {status !== 'idle' && (
-                <Button
-                  onClick={handleStop}
-                  variant="outline"
-                  className="border-vamp-red/50 hover:bg-vamp-red/10 text-vamp-red"
-                >
-                  <Square className="w-4 h-4 mr-2" />
-                  Stop
-                </Button>
+                ))
               )}
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Min SOL</Label>
+              <Input
+                placeholder="0.01"
+                value={minSol}
+                onChange={(e) => setMinSol(e.target.value)}
+                type="number"
+                step="0.01"
+                className="bg-input border-border font-mono"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Max SOL</Label>
+              <Input
+                placeholder="0.05"
+                value={maxSol}
+                onChange={(e) => setMaxSol(e.target.value)}
+                type="number"
+                step="0.01"
+                className="bg-input border-border font-mono"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleStartSession}
+            disabled={isStarting || !tokenCA || selectedWallets.length === 0}
+            className="w-full bg-volume-blue hover:bg-volume-blue/80 text-foreground font-bold h-11 text-base"
+          >
+            {isStarting ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Starting session...
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5 mr-2" />
+                START VOLUME SESSION
+              </>
+            )}
+          </Button>
         </section>
 
-        {/* Live Stats */}
-        <section className="p-4 rounded-lg border border-volume-blue/30 bg-card">
-          <div className="flex items-center gap-2 text-volume-blue mb-4">
-            <Activity className="w-5 h-5" />
-            <h2 className="font-mono font-bold">Live Stats</h2>
-            <div
-              className={cn(
-                'ml-auto px-2 py-0.5 rounded text-xs font-mono',
-                status === 'running' && 'bg-wallet-green/20 text-wallet-green',
-                status === 'paused' && 'bg-yellow-500/20 text-yellow-500',
-                status === 'idle' && 'bg-muted text-muted-foreground'
-              )}
-            >
-              {status.toUpperCase()}
-            </div>
+        {/* Active Sessions */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-mono font-bold text-volume-blue">Active Sessions</h2>
+            {sessions.length > 0 && (
+              <span className="text-sm text-muted-foreground">{sessions.length} running</span>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-3 rounded bg-secondary/50">
-              <div className="text-2xl font-mono font-bold text-volume-blue">
-                {stats.txCount}
-              </div>
-              <div className="text-xs text-muted-foreground">TX Count</div>
+          {sessions.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground border border-dashed border-border rounded-lg">
+              No active sessions
             </div>
-            <div className="text-center p-3 rounded bg-secondary/50">
-              <div className="text-2xl font-mono font-bold text-foreground">
-                {status === 'idle' ? '—' : status === 'running' ? '●' : '||'}
-              </div>
-              <div className="text-xs text-muted-foreground">Status</div>
+          ) : (
+            <div className="space-y-2">
+              {sessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:border-volume-blue/30 transition-colors"
+                >
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-sm">{session.ca.slice(0, 8)}...</span>
+                      <span
+                        className={cn(
+                          'text-xs px-2 py-1 rounded-full font-mono',
+                          session.status === 'running'
+                            ? 'bg-wallet-green/20 text-wallet-green'
+                            : 'bg-yellow-500/20 text-yellow-400'
+                        )}
+                      >
+                        {session.status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {session.txs} txs • {session.fees_sol.toFixed(4)} SOL • {session.wallets_count} wallets
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleSessionPause(session.id)}
+                      className={cn(
+                        'border-volume-blue/30 hover:border-volume-blue/60 hover:bg-volume-blue/10',
+                        session.status === 'paused' && 'bg-volume-blue/10'
+                      )}
+                    >
+                      {session.status === 'running' ? (
+                        <Pause className="w-4 h-4" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => stopSession(session.id)}
+                      className="border-destructive/30 hover:border-destructive/60 hover:bg-destructive/10 text-destructive"
+                    >
+                      <Power className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="text-center p-3 rounded bg-secondary/50">
-              <div className="text-2xl font-mono font-bold text-vamp-red">
-                {stats.feesSpent.toFixed(4)}
-              </div>
-              <div className="text-xs text-muted-foreground">SOL Spent</div>
-            </div>
-          </div>
+          )}
         </section>
       </main>
     </div>
