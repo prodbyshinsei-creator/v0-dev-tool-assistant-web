@@ -1,28 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Play, Pause, Power } from 'lucide-react';
+import { X, Loader2, Play, Pause, Power, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-interface WalletType {
-  id: number;
-  name: string;
-  address: string;
-  balance: number;
-}
-
 interface VolumeSession {
   id: string;
   ca: string;
-  status: 'running' | 'paused' | 'stopped';
-  txs: number;
-  fees_sol: number;
-  wallets_count: number;
+  preset: 'organic' | 'fast' | 'turbo';
+  status: 'running' | 'paused';
+  wallets: number;
 }
 
 interface VolumeModalProps {
@@ -32,133 +22,78 @@ interface VolumeModalProps {
 export function VolumeModal({ onClose }: VolumeModalProps) {
   const [step, setStep] = useState<'main' | 'sessions'>('main');
   const [tokenCA, setTokenCA] = useState('');
-  const [selectedWallets, setSelectedWallets] = useState<number[]>([]);
-  const [minSol, setMinSol] = useState('0.01');
-  const [maxSol, setMaxSol] = useState('0.05');
-  
-  const [wallets, setWallets] = useState<WalletType[]>([]);
-  const [isLoadingWallets, setIsLoadingWallets] = useState(false);
+  const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<'organic' | 'fast' | 'turbo'>('organic');
   const [isStarting, setIsStarting] = useState(false);
   const [sessions, setSessions] = useState<VolumeSession[]>([]);
 
-  useEffect(() => {
-    loadWallets();
-  }, []);
+  const mockWallets = [
+    { id: '1', name: 'Bot 1', address: 'soL1abc...', balance: 2.5 },
+    { id: '2', name: 'Bot 2', address: 'soL2def...', balance: 1.8 },
+    { id: '3', name: 'Bot 3', address: 'soL3ghi...', balance: 3.2 },
+  ];
 
-  const loadWallets = async () => {
-    try {
-      setIsLoadingWallets(true);
-      const response = await fetch(`${API_URL}/wallets?user_id=1&wallet_type=volume`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.wallets) {
-          setWallets(data.wallets);
-        }
-      }
-    } catch (error) {
-      console.log('Backend unavailable');
-    } finally {
-      setIsLoadingWallets(false);
-    }
+  const presets = {
+    organic: {
+      label: 'ORGANIC',
+      desc: 'Natural trading pattern with random delays',
+      color: 'text-green-400 border-green-400/30 hover:bg-green-400/10',
+      icon: '🌱',
+      delay: 'Variable delays (30s - 2m)',
+    },
+    fast: {
+      label: 'FAST',
+      desc: 'Faster than organic, still natural-looking',
+      color: 'text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/10',
+      icon: '⚡',
+      delay: 'Faster delays (5s - 30s)',
+    },
+    turbo: {
+      label: 'TURBO',
+      desc: 'Maximum speed with short delays',
+      color: 'text-red-500 border-red-500/30 hover:bg-red-500/10',
+      icon: '🔥',
+      delay: 'Minimal delays (1s - 5s)',
+    },
   };
 
-  const toggleWallet = (walletId: number) => {
-    if (selectedWallets.includes(walletId)) {
-      setSelectedWallets(selectedWallets.filter(id => id !== walletId));
-    } else {
-      setSelectedWallets([...selectedWallets, walletId]);
-    }
+  const toggleWallet = (id: string) => {
+    setSelectedWallets(prev =>
+      prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
+    );
   };
 
-  const handleStartSession = async () => {
+  const handleStartSession = () => {
     if (!tokenCA || selectedWallets.length === 0) return;
     
     setIsStarting(true);
-
-    try {
-      const walletAddresses = wallets
-        .filter(w => selectedWallets.includes(w.id))
-        .map(w => w.address);
-
-      const response = await fetch(`${API_URL}/volume/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ca: tokenCA,
-          wallet_addresses: walletAddresses,
-          min_sol: parseFloat(minSol),
-          max_sol: parseFloat(maxSol),
-          user_id: 1,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.session_id) {
-          const newSession: VolumeSession = {
-            id: data.session_id,
-            ca: tokenCA,
-            status: 'running',
-            txs: 0,
-            fees_sol: 0,
-            wallets_count: selectedWallets.length,
-          };
-          setSessions([newSession, ...sessions]);
-          
-          setTokenCA('');
-          setSelectedWallets([]);
-          setMinSol('0.01');
-          setMaxSol('0.05');
-          
-          setIsStarting(false);
-          return;
-        }
-      }
-
-      throw new Error('API unavailable');
-    } catch (error) {
-      console.log('Mock session start');
-      setTimeout(() => {
-        const newSession: VolumeSession = {
-          id: `session-${Date.now()}`,
-          ca: tokenCA,
-          status: 'running',
-          txs: 0,
-          fees_sol: 0,
-          wallets_count: selectedWallets.length,
-        };
-        setSessions([newSession, ...sessions]);
-        
-        setTokenCA('');
-        setSelectedWallets([]);
-        setIsStarting(false);
-      }, 1000);
-    }
+    setTimeout(() => {
+      const newSession: VolumeSession = {
+        id: Math.random().toString(),
+        ca: tokenCA,
+        preset: selectedPreset,
+        status: 'running',
+        wallets: selectedWallets.length,
+      };
+      setSessions([newSession, ...sessions]);
+      
+      setTokenCA('');
+      setSelectedWallets([]);
+      setIsStarting(false);
+      setStep('sessions');
+    }, 1000);
   };
 
-  const toggleSessionPause = async (sessionId: string) => {
-    try {
-      await fetch(`${API_URL}/volume/pause/${sessionId}`, {
-        method: 'POST',
-      });
-    } catch (error) {}
-    
-    setSessions(sessions.map(s => 
-      s.id === sessionId 
+  const toggleSessionPause = (id: string) => {
+    setSessions(sessions.map(s =>
+      s.id === id
         ? { ...s, status: s.status === 'running' ? 'paused' : 'running' }
         : s
     ));
   };
 
-  const stopSession = async (sessionId: string) => {
-    try {
-      await fetch(`${API_URL}/volume/stop/${sessionId}`, {
-        method: 'POST',
-      });
-    } catch (error) {}
-    
-    setSessions(sessions.filter(s => s.id !== sessionId));
+  const stopSession = (id: string) => {
+    setSessions(sessions.filter(s => s.id !== id));
   };
 
   return (
@@ -170,23 +105,23 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="bg-card border-2 border-volume-blue/30 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto shadow-2xl"
+          className="bg-black/80 backdrop-blur-2xl border-2 border-blue-400/30 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-8">
-            {/* Header with close button */}
+            {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <img src="/vamp-blood.png" alt="Volume" className="w-10 h-10" />
-                <h2 className="text-2xl font-mono font-bold text-volume-blue">VOLUME</h2>
+                <h2 className="text-3xl font-mono font-bold text-blue-400">VOLUME</h2>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                className="hover:bg-volume-blue/10"
+                className="hover:bg-blue-400/10"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </Button>
             </div>
 
@@ -195,10 +130,10 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
               <button
                 onClick={() => setStep('main')}
                 className={cn(
-                  'flex-1 py-2 px-4 rounded-lg font-bold transition-all',
+                  'flex-1 py-3 px-6 rounded-xl font-bold transition-all text-lg',
                   step === 'main'
-                    ? 'bg-volume-blue text-foreground'
-                    : 'bg-transparent border border-volume-blue/30 text-muted-foreground hover:border-volume-blue/60'
+                    ? 'bg-blue-400 text-black'
+                    : 'bg-white/10 border border-white/20 text-white hover:border-white/40'
                 )}
               >
                 Start Session
@@ -206,87 +141,83 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
               <button
                 onClick={() => setStep('sessions')}
                 className={cn(
-                  'flex-1 py-2 px-4 rounded-lg font-bold transition-all',
+                  'flex-1 py-3 px-6 rounded-xl font-bold transition-all text-lg',
                   step === 'sessions'
-                    ? 'bg-volume-blue text-foreground'
-                    : 'bg-transparent border border-volume-blue/30 text-muted-foreground hover:border-volume-blue/60'
+                    ? 'bg-blue-400 text-black'
+                    : 'bg-white/10 border border-white/20 text-white hover:border-white/40'
                 )}
               >
                 Active Sessions ({sessions.length})
               </button>
             </div>
 
-            {/* Content */}
             {step === 'main' ? (
-              <div className="space-y-5">
+              <div className="space-y-6">
+                {/* Token CA */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Token Contract Address</Label>
+                  <Label className="text-lg font-semibold text-white/90">Token CA</Label>
                   <Input
-                    placeholder="Enter token CA..."
                     value={tokenCA}
                     onChange={(e) => setTokenCA(e.target.value)}
-                    className="bg-input border-border focus:border-volume-blue/50 font-mono text-sm h-10"
+                    placeholder="Enter token contract address..."
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 text-base"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Select Wallets</Label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto border border-border/30 rounded-lg p-3">
-                    {isLoadingWallets ? (
-                      <div className="text-sm text-muted-foreground">Loading wallets...</div>
-                    ) : wallets.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">No volume wallets. Create one first.</div>
-                    ) : (
-                      wallets.map((wallet) => (
-                        <label
-                          key={wallet.id}
-                          className="flex items-center gap-3 p-2 rounded hover:bg-volume-blue/10 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedWallets.includes(wallet.id)}
-                            onChange={() => toggleWallet(wallet.id)}
-                            className="w-4 h-4"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-mono font-bold">{wallet.name}</div>
-                            <div className="text-xs text-muted-foreground">{wallet.balance.toFixed(2)} SOL</div>
-                          </div>
-                        </label>
-                      ))
-                    )}
+                {/* Preset Selection */}
+                <div className="space-y-3">
+                  <Label className="text-lg font-semibold text-white/90">Trading Preset</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(Object.entries(presets) as [keyof typeof presets, any][]).map(([key, preset]) => (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedPreset(key)}
+                        className={cn(
+                          'p-4 rounded-xl border-2 transition-all text-center',
+                          selectedPreset === key
+                            ? `${preset.color} bg-white/10 border-current`
+                            : `${preset.color} border-current hover:bg-white/5`
+                        )}
+                      >
+                        <div className="text-3xl mb-2">{preset.icon}</div>
+                        <div className="font-bold text-lg">{preset.label}</div>
+                        <div className="text-xs opacity-80">{preset.delay}</div>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Min SOL</Label>
-                    <Input
-                      placeholder="0.01"
-                      value={minSol}
-                      onChange={(e) => setMinSol(e.target.value)}
-                      type="number"
-                      step="0.01"
-                      className="bg-input border-border font-mono text-sm h-10"
-                    />
+                {/* Wallet Selection */}
+                <div className="space-y-3">
+                  <Label className="text-lg font-semibold text-white/90">Select Wallets</Label>
+                  <div className="space-y-2 border border-white/10 rounded-xl p-4 max-h-40 overflow-y-auto">
+                    {mockWallets.map((wallet) => (
+                      <label
+                        key={wallet.id}
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedWallets.includes(wallet.id)}
+                          onChange={() => toggleWallet(wallet.id)}
+                          className="w-5 h-5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-mono font-bold text-white">{wallet.name}</div>
+                          <div className="text-sm text-white/50">{wallet.address}</div>
+                        </div>
+                        <div className="text-sm text-white/60">{wallet.balance} SOL</div>
+                      </label>
+                    ))}
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Max SOL</Label>
-                    <Input
-                      placeholder="0.05"
-                      value={maxSol}
-                      onChange={(e) => setMaxSol(e.target.value)}
-                      type="number"
-                      step="0.01"
-                      className="bg-input border-border font-mono text-sm h-10"
-                    />
-                  </div>
+                  <div className="text-sm text-white/60">{selectedWallets.length} selected</div>
                 </div>
 
+                {/* Start Button */}
                 <Button
                   onClick={handleStartSession}
                   disabled={isStarting || !tokenCA || selectedWallets.length === 0}
-                  className="w-full bg-volume-blue hover:bg-volume-blue/80 text-foreground font-bold h-11"
+                  className="w-full bg-blue-400 hover:bg-blue-400/80 text-black font-bold h-12 text-base"
                 >
                   {isStarting ? (
                     <>
@@ -302,32 +233,35 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {sessions.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">No active sessions</div>
+                  <div className="p-8 text-center text-white/50">No active sessions</div>
                 ) : (
                   sessions.map((session) => (
                     <div
                       key={session.id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50 hover:border-volume-blue/30"
+                      className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:border-white/30 transition-all"
                     >
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold">{session.ca.slice(0, 8)}...</span>
-                          <span
-                            className={cn(
-                              'text-xs px-2 py-0.5 rounded font-mono',
-                              session.status === 'running'
-                                ? 'bg-wallet-green/20 text-wallet-green'
-                                : 'bg-yellow-500/20 text-yellow-400'
-                            )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="font-mono text-white font-bold">{session.ca.slice(0, 8)}...</span>
+                          <span className="text-sm font-bold px-3 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.preset === 'organic' ? '#22c55e20' : 
+                                             session.preset === 'fast' ? '#eab30820' :
+                                             '#ef444420',
+                              color: session.preset === 'organic' ? '#22c55e' :
+                                    session.preset === 'fast' ? '#eab308' :
+                                    '#ef4444'
+                            }}
                           >
-                            {session.status.toUpperCase()}
+                            {session.preset.toUpperCase()}
+                          </span>
+                          <span className="text-xs px-2 py-1 bg-green-400/20 text-green-400 rounded">
+                            {session.status === 'running' ? '🟢 RUNNING' : '🟡 PAUSED'}
                           </span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {session.txs} txs • {session.fees_sol.toFixed(4)} SOL • {session.wallets_count} wallets
-                        </div>
+                        <div className="text-sm text-white/50">{session.wallets} wallets active</div>
                       </div>
 
                       <div className="flex gap-2">
@@ -335,7 +269,7 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                           variant="outline"
                           size="sm"
                           onClick={() => toggleSessionPause(session.id)}
-                          className="border-volume-blue/30 hover:border-volume-blue/60 h-8"
+                          className="border-white/20 h-9"
                         >
                           {session.status === 'running' ? (
                             <Pause className="w-4 h-4" />
@@ -347,7 +281,7 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                           variant="outline"
                           size="sm"
                           onClick={() => stopSession(session.id)}
-                          className="border-destructive/30 hover:border-destructive/60 hover:bg-destructive/10 text-destructive h-8"
+                          className="border-destructive/30 hover:border-destructive/60 text-destructive h-9"
                         >
                           <Power className="w-4 h-4" />
                         </Button>
