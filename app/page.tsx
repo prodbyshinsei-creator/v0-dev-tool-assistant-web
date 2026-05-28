@@ -16,116 +16,107 @@ export default function Home() {
       title: 'VAMP',
       icon: '/vamp-fangs-silver.png',
       desc: 'Launch Tokens',
-      color: 'hover:text-red-500',
+      color: 'red-500',
+      hoverBorder: 'hover:border-red-500/40',
+      hoverBg: 'hover:bg-red-500/5',
     },
     {
       id: 'volume',
       title: 'VOLUME',
       icon: '/vamp-blood.png',
       desc: 'Trading Bot',
-      color: 'hover:text-blue-400',
+      color: 'blue-400',
+      hoverBorder: 'hover:border-blue-400/40',
+      hoverBg: 'hover:bg-blue-400/5',
     },
     {
       id: 'wallets',
       title: 'WALLETS',
       icon: '/vamp-blood.png',
       desc: 'Manage Keys',
-      color: 'hover:text-green-400',
+      color: 'green-400',
+      hoverBorder: 'hover:border-green-400/40',
+      hoverBg: 'hover:bg-green-400/5',
     },
     {
       id: 'portfolio',
       title: 'PORTFOLIO',
       icon: '/vamp-blood.png',
       desc: 'Track Tokens',
-      color: 'hover:text-white',
+      color: 'white',
+      hoverBorder: 'hover:border-white/40',
+      hoverBg: 'hover:bg-white/5',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-black overflow-hidden">
+    <div className="min-h-screen overflow-hidden" style={{ background: 'transparent' }}>
       <InteractiveShaderBackground />
 
       {/* Header */}
-      <div className="relative z-10 border-b border-white/10 bg-black/60 backdrop-blur-2xl">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
+      <div className="relative z-10 border-b border-white/10 bg-black/50 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center gap-3">
-            <img src="/vamp-fangs-silver.png" alt="VAMP" className="w-8 h-8" />
-            <h1 className="text-2xl font-mono font-black text-white">VAMP ECOSYSTEM</h1>
+            <img src="/vamp-fangs-silver.png" alt="VAMP" className="w-7 h-7" />
+            <span className="text-lg font-mono font-bold text-white tracking-widest">DEV TOOL ASSISTANT</span>
           </div>
-          <div className="text-sm text-white/50">v0 Dev Tools</div>
+
+          {/* Right side */}
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-white/30 font-mono hidden md:block">v0.4 MVP</span>
+            <button
+              className="px-5 py-2 rounded-lg border border-red-500/50 text-red-400 text-sm font-mono font-bold hover:bg-red-500/10 hover:border-red-500 transition-all"
+              onClick={() => alert('Auth coming in Phase 2')}
+            >
+              LOGIN
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 min-h-[calc(100vh-80px)] flex items-center justify-center">
-        <div className="max-w-6xl mx-auto px-4 py-16">
-          {/* Title */}
-          <div className="text-center mb-16">
-            <h2 className="text-5xl md:text-6xl font-black text-white mb-4">
-              VAMPIRE PROTOCOL
-            </h2>
-            <p className="text-xl text-white/60">
-              Advanced Solana Token Tools
-            </p>
-          </div>
+      <div className="relative z-10 min-h-[calc(100vh-64px)] flex items-center justify-center">
+        <div className="w-full max-w-5xl mx-auto px-6 py-12">
 
           {/* Tools Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {tools.map((tool) => (
               <button
                 key={tool.id}
                 onClick={() => setActiveModal(tool.id as any)}
-                className={cn(
-                  'group relative p-8 rounded-2xl',
-                  'bg-white/5 backdrop-blur-2xl border border-white/10',
-                  'hover:border-white/30 transition-all duration-300',
-                  'flex flex-col items-center justify-center text-center',
-                  'hover:bg-white/10'
-                )}
+                className={`group relative p-8 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 transition-all duration-300 flex flex-col items-center justify-center text-center ${tool.hoverBorder} ${tool.hoverBg}`}
               >
-                {/* Icon */}
                 <img
                   src={tool.icon}
                   alt={tool.title}
-                  className={cn(
-                    'w-12 h-12 mb-4 transition-transform duration-300',
-                    'group-hover:scale-110'
-                  )}
+                  className="w-10 h-10 mb-4 transition-transform duration-300 group-hover:scale-110"
                 />
-
-                {/* Title */}
-                <h3 className={cn(
-                  'text-3xl md:text-4xl font-black mb-2 transition-colors duration-300',
-                  'text-white',
-                  tool.color
-                )}>
+                <h3
+                  className="text-3xl md:text-4xl font-black mb-1 text-white transition-colors duration-300"
+                  style={{}}
+                >
                   {tool.title}
                 </h3>
-
-                {/* Description */}
-                <p className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
+                <p className="text-xs text-white/50 group-hover:text-white/70 transition-colors">
                   {tool.desc}
                 </p>
               </button>
             ))}
           </div>
 
-          {/* Footer Info */}
-          <div className="mt-16 text-center text-white/40 text-sm">
-            <p>Connected to Railway Backend • Vercel Frontend</p>
+          {/* Footer */}
+          <div className="mt-10 text-center text-white/20 text-xs font-mono">
+            Railway Backend · Vercel Frontend
           </div>
         </div>
       </div>
 
       {/* Modals */}
-      {activeModal === 'vamp' && <VampModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'volume' && <VolumeModal onClose={() => setActiveModal(null)} />}
-      {activeModal === 'wallets' && <WalletsModal onClose={() => setActiveModal(null)} />}
+      {activeModal === 'vamp'      && <VampModal      onClose={() => setActiveModal(null)} />}
+      {activeModal === 'volume'    && <VolumeModal    onClose={() => setActiveModal(null)} />}
+      {activeModal === 'wallets'   && <WalletsModal   onClose={() => setActiveModal(null)} />}
       {activeModal === 'portfolio' && <PortfolioModal onClose={() => setActiveModal(null)} />}
     </div>
   );
-}
-
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
 }
