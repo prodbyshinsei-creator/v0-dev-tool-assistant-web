@@ -55,9 +55,29 @@ const comingSoonBlocks = [
   { id: 3, label: '?' },
 ];
 
-// Blue Shader Background like maxy.tools with bright flowing waves
-function ShaderBackground() {
+// Interactive Shader with Mouse Tracking and Color Themes
+function InteractiveShaderBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [mouseX, setMouseX] = useState(0);
+  const [mouseY, setMouseY] = useState(0);
+  const [theme, setTheme] = useState<'green' | 'blue' | 'red' | 'purple' | 'cyan'>('green');
+
+  const getColorConfig = (currentTheme: typeof theme) => {
+    switch (currentTheme) {
+      case 'green':
+        return { r: 0, g: 255, b: 100 };
+      case 'blue':
+        return { r: 0, g: 100, b: 255 };
+      case 'red':
+        return { r: 255, g: 50, b: 100 };
+      case 'purple':
+        return { r: 200, g: 100, b: 255 };
+      case 'cyan':
+        return { r: 100, g: 200, b: 255 };
+      default:
+        return { r: 0, g: 255, b: 100 };
+    }
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -74,35 +94,59 @@ function ShaderBackground() {
       canvas.height = window.innerHeight;
     };
 
+    const handleMouseMove = (e: MouseEvent) => {
+      setMouseX(e.clientX);
+      setMouseY(e.clientY);
+    };
+
     resize();
     window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', handleMouseMove);
 
-    // Blue and black flowing waves
     const render = () => {
       const width = canvas.width;
       const height = canvas.height;
       
-      time += 0.004;
+      time += 0.005;
 
       const imageData = ctx.createImageData(width, height);
       const data = imageData.data;
 
+      const colorConfig = getColorConfig(theme);
+      const baseR = colorConfig.r;
+      const baseG = colorConfig.g;
+      const baseB = colorConfig.b;
+
       for (let y = 0; y < height; y += 2) {
         for (let x = 0; x < width; x += 2) {
-          // Multiple flowing wave layers for complex animation
-          const wave1 = Math.sin((x + time * 150) * 0.015 + y * 0.008) * Math.cos((y + time * 120) * 0.012) * 0.85;
-          const wave2 = Math.sin((x - time * 100) * 0.008 + y * 0.01 + time * 0.5) * 0.7;
+          // Distance from mouse cursor
+          const dx = (x - mouseX) / width;
+          const dy = (y - mouseY) / height;
+          const distToMouse = Math.sqrt(dx * dx + dy * dy);
+          const mouseInfluence = Math.max(0, 1 - distToMouse * 2) * 0.8;
+
+          // Wave layers
+          const wave1 = Math.sin((x + time * 150) * 0.015 + y * 0.008) * 
+                       Math.cos((y + time * 120 + mouseX * 0.01) * 0.012) * 0.85;
+          
+          const wave2 = Math.sin((x - time * 100) * 0.008 + y * 0.01 + time * 0.5 + mouseY * 0.005) * 0.7;
+          
           const wave3 = Math.cos((x + y) * 0.004 + time * 1.2) * 0.6;
-          const wave4 = Math.sin(time * 2 - (x + y) * 0.006) * 0.5;
           
-          const combined = (wave1 + wave2 + wave3 + wave4) / 2.75;
+          const wave4 = Math.sin(time * 2 - (x + y) * 0.006 + mouseInfluence * 5) * 0.5;
+
+          // Mouse cursor wave effect
+          const cursorWave = mouseInfluence * Math.sin(time * 8 + distToMouse * 20);
+
+          const combined = (wave1 + wave2 + wave3 + wave4 + cursorWave * 0.5) / 2.85;
           const value = Math.floor((combined + 1) * 80);
-          
-          // Bright blue with black shadows - like maxy.tools
-          const brightness = Math.sin(x * 0.001 + time * 0.1) * 0.3 + 0.7;
-          const r = Math.floor(value * 0.3 * brightness);
-          const g = Math.floor((value * 0.8 + 60) * brightness);
-          const b = Math.floor((value + 100) * brightness);
+
+          // Brightness variation based on mouse
+          const brightness = Math.sin(x * 0.001 + time * 0.1) * 0.3 + 0.7 + mouseInfluence * 0.3;
+
+          const r = Math.floor(value * (baseR / 255) * brightness);
+          const g = Math.floor((value * 0.8 + 60) * (baseG / 255) * brightness);
+          const b = Math.floor((value + 100) * (baseB / 255) * brightness);
 
           for (let dy = 0; dy < 2; dy++) {
             for (let dx = 0; dx < 2; dx++) {
@@ -126,16 +170,47 @@ function ShaderBackground() {
 
     return () => {
       window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', handleMouseMove);
       cancelAnimationFrame(animationFrameId);
     };
-  }, []);
+  }, [theme]);
+
+  const themes = ['green', 'blue', 'red', 'purple', 'cyan'] as const;
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 w-full h-full"
-      style={{ opacity: 0.7 }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0 w-full h-full"
+        style={{ opacity: 0.8 }}
+      />
+
+      {/* Theme Switcher */}
+      <div className="fixed bottom-8 right-8 z-40 flex gap-2">
+        {themes.map((t) => {
+          const colors = {
+            green: '#00ff64',
+            blue: '#0064ff',
+            red: '#ff3264',
+            purple: '#c864ff',
+            cyan: '#64c8ff',
+          };
+          return (
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              className={`w-10 h-10 rounded-full border-2 transition-all ${
+                theme === t ? 'border-white scale-110' : 'border-white/30'
+              }`}
+              style={{
+                backgroundColor: colors[t],
+              }}
+              title={`${t.charAt(0).toUpperCase() + t.slice(1)} theme`}
+            />
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -157,8 +232,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Blue Shader Background */}
-      <ShaderBackground />
+      {/* Interactive Shader Background */}
+      <InteractiveShaderBackground />
 
       {/* Content */}
       <div className="relative z-10">
