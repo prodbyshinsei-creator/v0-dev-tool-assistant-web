@@ -1,31 +1,20 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import './globals.css'
-
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+import type { Metadata } from 'next';
+import './globals.css';
+import { SolanaWalletProvider } from '@/components/wallet-provider';
 
 export const metadata: Metadata = {
   title: 'DEV TOOL ASSISTANT',
-  description: 'Solana Developer Tools',
-}
+  description: 'Advanced Solana Dev Tools',
+};
 
-export const viewport = {
-  themeColor: '#000000',
-}
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="bg-background">
-      <body className="font-sans antialiased min-h-screen">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <SolanaWalletProvider>
+          {children}
+        </SolanaWalletProvider>
       </body>
     </html>
-  )
+  );
 }
