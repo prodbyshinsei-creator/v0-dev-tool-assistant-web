@@ -1,43 +1,45 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Check, Zap, Globe, Twitter, Send, Upload, AlertCircle, Plus, Minus } from 'lucide-react';
+import { X, Loader2, Check, Zap, Globe, Twitter, Send, Upload, AlertCircle, Plus, Minus, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useWallets, usePortfolio } from '@/hooks/storage';
 
-interface VampModalProps { onClose: () => void; }
+interface VampModalProps {
+  onClose:          () => void;
+  onOpenPortfolio?: () => void;
+}
 
 const PLATFORMS = [
-  { id: 'pump',    label: 'Pump',    logo: '/platforms/pump.png'   },
-  { id: 'bonk',    label: 'Bonk',    logo: '/platforms/bonk.png'   },
-  { id: 'studio',  label: 'Studio',  logo: '/platforms/studio.jpg' },
-  { id: 'bags',    label: 'Bags',    logo: '/platforms/bags.png'   },
-  { id: 'raydium', label: 'Raydium', logo: '/platforms/raydium.jpg'},
-  { id: 'meteora', label: 'Meteora', logo: '/platforms/meteora.png'},
+  { id: 'pump',    label: 'Pump',    logo: '/platforms/pump.png'    },
+  { id: 'bonk',    label: 'Bonk',    logo: '/platforms/bonk.png'    },
+  { id: 'studio',  label: 'Studio',  logo: '/platforms/studio.jpg'  },
+  { id: 'bags',    label: 'Bags',    logo: '/platforms/bags.png'     },
+  { id: 'raydium', label: 'Raydium', logo: '/platforms/raydium.jpg'  },
+  { id: 'meteora', label: 'Meteora', logo: '/platforms/meteora.png'  },
 ];
 
-export function VampModal({ onClose }: VampModalProps) {
-  const { wallets }   = useWallets();
-  const { addToken }  = usePortfolio();
-  const fileRef       = useRef<HTMLInputElement>(null);
+export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
+  const { wallets } = useWallets();
+  const { addToken } = usePortfolio();
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep]                       = useState<'input'|'preview'|'edit'|'launch'>('input');
-  const [tokenCA, setTokenCA]                 = useState('');
-  const [selectedWallet, setSelectedWallet]   = useState<string|null>(null);
-  const [isFetching, setIsFetching]           = useState(false);
-  const [isLaunching, setIsLaunching]         = useState(false);
-  const [launchProgress, setLaunchProgress]   = useState({ done: 0, total: 0 });
-  const [launchError, setLaunchError]         = useState('');
-  const [imageFile, setImageFile]             = useState<File|null>(null);
-  const [previewImage, setPreviewImage]       = useState('');
+  const [step, setStep]                           = useState<'input'|'preview'|'edit'|'launch'>('input');
+  const [tokenCA, setTokenCA]                     = useState('');
+  const [selectedWallet, setSelectedWallet]       = useState<string|null>(null);
+  const [isFetching, setIsFetching]               = useState(false);
+  const [isLaunching, setIsLaunching]             = useState(false);
+  const [launchProgress, setLaunchProgress]       = useState({ done: 0, total: 0 });
+  const [launchError, setLaunchError]             = useState('');
+  const [launchedMint, setLaunchedMint]           = useState('');  // ← FIXED
+  const [imageFile, setImageFile]                 = useState<File|null>(null);
+  const [previewImage, setPreviewImage]           = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['pump']);
-
-  // Launch settings
-  const [launches, setLaunches]     = useState(1);   // how many copies
-  const [devBuySOL, setDevBuySOL]   = useState('0'); // dev buy per launch
+  const [launches, setLaunches]                   = useState(1);
+  const [devBuySOL, setDevBuySOL]                 = useState('');
 
   const [form, setForm] = useState({
     name: '', symbol: '', description: '',
@@ -59,8 +61,14 @@ export function VampModal({ onClose }: VampModalProps) {
       const res  = await fetch(`/api/solana/token-info?ca=${tokenCA}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setForm({ name: data.name||'', symbol: data.symbol||'', description: data.description||'',
-                website: data.website||'', twitter: data.twitter||'', telegram: data.telegram||'' });
+      setForm({
+        name:        data.name        || '',
+        symbol:      data.symbol      || '',
+        description: data.description || '',
+        website:     data.website     || '',
+        twitter:     data.twitter     || '',
+        telegram:    data.telegram    || '',
+      });
       if (data.image) setPreviewImage(data.image);
       setStep('preview');
     } catch (e: any) { setLaunchError(e.message || 'Token not found'); }
@@ -83,13 +91,10 @@ export function VampModal({ onClose }: VampModalProps) {
     setLaunchProgress({ done: 0, total: launches });
 
     try {
-      // 1. Upload to IPFS ONCE for all launches
+      // 1. Upload to IPFS once
       const ipfsForm = new FormData();
-      if (imageFile) {
-        ipfsForm.append('file', imageFile);
-      } else if (previewImage) {
-        ipfsForm.append('imageUrl', previewImage);
-      }
+      if (imageFile)     ipfsForm.append('file', imageFile);
+      else if (previewImage) ipfsForm.append('imageUrl', previewImage);
       ipfsForm.append('name',        form.name);
       ipfsForm.append('symbol',      form.symbol);
       ipfsForm.append('description', form.description);
@@ -101,8 +106,10 @@ export function VampModal({ onClose }: VampModalProps) {
       const { uri, error: ipfsErr } = await ipfsRes.json();
       if (ipfsErr || !uri) throw new Error(ipfsErr || 'IPFS upload failed');
 
-      // 2. Launch N times with the same URI
+      // 2. Launch N times
       const mintAddresses: string[] = [];
+      const buyAmt = parseFloat(devBuySOL) || 0;
+
       for (let i = 0; i < launches; i++) {
         const createRes = await fetch('/api/solana/create-token', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -111,20 +118,19 @@ export function VampModal({ onClose }: VampModalProps) {
             name:         form.name,
             symbol:       form.symbol,
             uri,
-            buyAmountSol: parseFloat(devBuySOL) || 0,
+            buyAmountSol: buyAmt,
           }),
         });
         const createData = await createRes.json();
-        if (!createData.success) throw new Error(`Launch ${i+1} failed: ${createData.error}`);
+        if (!createData.success) throw new Error(`Launch ${i+1}: ${createData.error}`);
         mintAddresses.push(createData.mintAddress);
         setLaunchProgress({ done: i + 1, total: launches });
 
-        // Add to portfolio
         addToken({
           id: createData.mintAddress, ca: createData.mintAddress,
           name: form.name, symbol: form.symbol,
           launchPrice: 0.000001, currentPrice: 0.000001,
-          bought: parseFloat(devBuySOL) || 0, sold: 0, profit: 0,
+          bought: buyAmt, sold: 0, profit: 0,
           image: previewImage, launchedAt: Date.now(),
         });
       }
@@ -188,7 +194,9 @@ export function VampModal({ onClose }: VampModalProps) {
                 <div className="p-5 rounded-2xl border border-red-500/30 bg-red-500/5">
                   <div className="flex gap-4">
                     <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 flex items-center justify-center">
-                      {previewImage ? <img src={previewImage} className="w-full h-full object-cover" alt="" onError={e => (e.currentTarget.style.display='none')} /> : <span className="text-2xl">🪙</span>}
+                      {previewImage
+                        ? <img src={previewImage} className="w-full h-full object-cover" alt="" onError={e => (e.currentTarget.style.display='none')} />
+                        : <span className="text-2xl">🪙</span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2">
@@ -212,13 +220,17 @@ export function VampModal({ onClose }: VampModalProps) {
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">Dev Wallet</Label>
                   {devWallets.length === 0 ? (
-                    <div className="p-4 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">Создай Dev Wallet в разделе WALLETS</div>
+                    <div className="p-4 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">
+                      Создай Dev Wallet в разделе WALLETS
+                    </div>
                   ) : (
                     <div className="space-y-2 border border-white/10 rounded-xl p-3 max-h-36 overflow-y-auto">
                       {devWallets.map(w => (
                         <button key={w.id} onClick={() => setSelectedWallet(w.id)}
                           className={cn('w-full flex items-center justify-between p-3 rounded-lg transition-all',
-                            selectedWallet === w.id ? 'border-2 border-red-500 bg-red-500/10' : 'border border-white/10 hover:border-white/25')}>
+                            selectedWallet === w.id
+                              ? 'border-2 border-red-500 bg-red-500/10'
+                              : 'border border-white/10 hover:border-white/25')}>
                           <div className="text-left">
                             <div className="font-mono font-bold text-white text-sm">{w.name}</div>
                             <div className="text-xs text-white/40">{w.address.slice(0,14)}… · {w.balance.toFixed(4)} SOL</div>
@@ -232,63 +244,66 @@ export function VampModal({ onClose }: VampModalProps) {
 
                 {/* Launch settings */}
                 <div className="p-4 rounded-2xl border border-white/10 bg-white/3 space-y-4">
-                  <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider">Launch Settings</h3>
+                  <h3 className="text-xs font-bold text-white/50 uppercase tracking-wider">Launch Settings</h3>
 
-                  {/* Number of launches */}
+                  {/* Launches counter */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-sm font-semibold text-white/80 block">Launches</Label>
-                      <p className="text-xs text-white/40">Сколько одинаковых токенов создать</p>
+                      <div className="text-sm font-semibold text-white/80">Launches</div>
+                      <div className="text-xs text-white/40">Кол-во одинаковых токенов</div>
                     </div>
                     <div className="flex items-center gap-3">
                       <button onClick={() => setLaunches(l => Math.max(1, l - 1))}
-                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-500/20 flex items-center justify-center text-white transition-colors">
                         <Minus className="w-4 h-4" />
                       </button>
                       <span className="text-2xl font-black text-white w-8 text-center">{launches}</span>
                       <button onClick={() => setLaunches(l => Math.min(10, l + 1))}
-                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+                        className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-500/20 flex items-center justify-center text-white transition-colors">
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Dev buy */}
-                  <div className="flex items-center justify-between gap-4">
+                  {/* Dev buy — plain input, no spinners */}
+                  <div className="flex items-center gap-3">
                     <div className="flex-1">
-                      <Label className="text-sm font-semibold text-white/80 block">Dev Buy per launch</Label>
-                      <p className="text-xs text-white/40">0 = без дев бая</p>
+                      <div className="text-sm font-semibold text-white/80">Dev Buy per launch</div>
+                      <div className="text-xs text-white/40">0 или пусто — без дев бая</div>
                     </div>
-                    <div className="flex items-center gap-2 w-36">
-                      <Input value={devBuySOL} onChange={e => setDevBuySOL(e.target.value)}
-                        type="number" step="0.01" min="0" placeholder="0"
-                        className="bg-white/5 border-white/15 text-white h-9 font-mono text-right" />
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={devBuySOL}
+                        onChange={e => setDevBuySOL(e.target.value)}
+                        placeholder="0"
+                        inputMode="decimal"
+                        className="w-24 bg-white/5 border border-white/15 text-white rounded-xl px-3 h-9 font-mono text-right focus:outline-none focus:border-red-500/50 placeholder:text-white/20"
+                      />
                       <span className="text-white/50 text-sm font-mono">SOL</span>
                     </div>
                   </div>
 
                   {/* Summary */}
                   <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                    <span className="text-sm text-white/60">
-                      {launches} launch{launches > 1 ? 'es' : ''} × {devBuyNum > 0 ? devBuySOL : '0'} SOL
+                    <span className="text-sm text-white/50">
+                      {launches} × {devBuyNum > 0 ? `${devBuySOL} SOL` : '0 SOL'}
                     </span>
-                    <span className="text-lg font-black text-white">
-                      = <span className="text-red-400">{totalSOL} SOL</span> total
+                    <span className="font-black text-white">
+                      = <span className="text-red-400">{totalSOL} SOL</span>
                     </span>
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="flex gap-3">
-                  <Button onClick={() => setStep('edit')} variant="outline" className="flex-1 border-white/20 h-11 font-mono">EDIT</Button>
-                  <Button onClick={handleLaunch}
-                    disabled={!selectedWallet || isLaunching}
+                  <Button onClick={() => setStep('edit')} variant="outline" className="flex-1 border-white/20 h-11 font-mono">
+                    EDIT
+                  </Button>
+                  <Button onClick={handleLaunch} disabled={!selectedWallet || isLaunching}
                     className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold h-11">
                     {isLaunching ? (
                       <><Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {launchProgress.total > 1
-                          ? `Launching ${launchProgress.done}/${launchProgress.total}…`
-                          : 'Launching…'}
+                        {launchProgress.total > 1 ? `${launchProgress.done}/${launchProgress.total}…` : 'Launching…'}
                       </>
                     ) : (
                       <><Zap className="w-4 h-4 mr-2" />
@@ -316,7 +331,7 @@ export function VampModal({ onClose }: VampModalProps) {
                     </div>
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-                  <p className="text-xs text-white/40">Click to upload from computer</p>
+                  <p className="text-xs text-white/40">Нажми чтобы загрузить с компьютера</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -335,7 +350,8 @@ export function VampModal({ onClose }: VampModalProps) {
                 <div>
                   <Label className="text-sm text-white/70 mb-1 block">Description</Label>
                   <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})}
-                    rows={3} className="w-full bg-white/5 border border-white/15 text-white rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-red-500/50" />
+                    rows={3}
+                    className="w-full bg-white/5 border border-white/15 text-white rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-red-500/50" />
                 </div>
 
                 <div className="space-y-2">
@@ -386,17 +402,16 @@ export function VampModal({ onClose }: VampModalProps) {
 
             {/* LAUNCH SUCCESS */}
             {step === 'launch' && (
-              <div className="text-center py-6 space-y-4">
+              <div className="text-center py-6 space-y-3">
                 <div className="text-6xl">🚀</div>
                 <h3 className="text-2xl font-bold text-white">
                   {launches > 1 ? `${launches} Tokens Launched!` : 'Token Launched!'}
                 </h3>
-                <p className="text-white/50">
-                  {form.symbol} добавлен в Portfolio
-                  {devBuyNum > 0 && ` · Dev buy: ${totalSOL} SOL`}
+                <p className="text-white/50 text-sm">
+                  {form.symbol} добавлен в Portfolio{devBuyNum > 0 ? ` · Dev buy: ${totalSOL} SOL` : ''}
                 </p>
                 {launchedMint && (
-                  <p className="text-xs text-white/30 font-mono break-all px-4">{launchedMint}</p>
+                  <p className="text-xs text-white/25 font-mono break-all px-2">{launchedMint}</p>
                 )}
                 <div className="flex justify-center gap-2 py-1">
                   {[0,100,200].map(d => (
@@ -404,27 +419,26 @@ export function VampModal({ onClose }: VampModalProps) {
                   ))}
                 </div>
                 <div className="flex flex-col gap-2 pt-1">
-                  <Button onClick={onClose}
-                    className="w-full bg-red-500 hover:bg-red-600 text-white font-bold h-11">
+                  <Button onClick={onClose} className="w-full bg-red-500 hover:bg-red-600 text-white font-bold h-11">
                     Close
                   </Button>
                   <a href={launchedMint ? `https://gmgn.ai/sol/token/${launchedMint}` : 'https://gmgn.ai'}
                     target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#0d9488] hover:bg-[#0f766e] text-white font-bold transition-colors text-sm">
-                    🔗 Open GMGN
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm text-white transition-colors"
+                    style={{ background: '#0d9488' }}>
+                    <ExternalLink className="w-4 h-4" /> Open GMGN
                   </a>
-                  <button
-                    onClick={() => { onClose(); setTimeout(() => { const el = document.querySelector('[data-modal="portfolio"]') as HTMLElement; el?.click(); }, 100); }}
-                    className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold transition-colors text-sm border border-white/15">
+                  <button onClick={() => { onClose(); onOpenPortfolio?.(); }}
+                    className="w-full py-3 rounded-xl bg-white/8 hover:bg-white/12 text-white font-bold text-sm border border-white/15 transition-colors">
                     📊 Open Portfolio
                   </button>
                 </div>
               </div>
             )}
+
           </div>
         </div>
       </div>
     </>
   );
 }
-
