@@ -20,6 +20,10 @@ interface StoredUser {
   passwordHash: string;
   createdAt: number;
   walletAddress?: string;
+  banned?: boolean;
+  bannedAt?: number;
+  bannedReason?: string;
+  lastLogin?: number;
 }
 
 export function getAuthUser(): AuthUser | null {
@@ -55,37 +59,55 @@ export function getAllUsers() {
     id: u.id, email: u.email, createdAt: u.createdAt,
     isAdmin: ADMIN_EMAILS.includes((u.email||'').toLowerCase()),
     walletAddress: u.walletAddress,
+    banned: u.banned || false,
+    bannedAt: u.bannedAt,
+    bannedReason: u.bannedReason,
+    lastLogin: u.lastLogin,
   }));
 }
 
 export function deleteUserById(id: string) {
-  const users = getStoredUsers().filter(u => u.id !== id);
+  localStorage.setItem(USERS_KEY, JSON.stringify(getStoredUsers().filter(u => u.id !== id)));
+}
+
+export function banUser(id: string, reason = '') {
+  const users = getStoredUsers();
+  const idx   = users.findIndex(u => u.id === id);
+  if (idx !== -1) { users[idx].banned = true; users[idx].bannedAt = Date.now(); users[idx].bannedReason = reason; }
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-// Login/register via wallet address — no password
-export function loginOrRegisterWithWallet(walletAddress: string, walletName: string): AuthUser {
+export function unbanUser(id: string) {
+  const users = getStoredUsers();
+  const idx   = users.findIndex(u => u.id === id);
+  if (idx !== -1) { delete users[idx].banned; delete users[idx].bannedAt; delete users[idx].bannedReason; }
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+export function loginOrRegisterWithWallet(walletAddress: string, walletName: string): { user: AuthUser | null; banned?: boolean; reason?: string } {
   const users = getStoredUsers();
   let user = users.find(u => u.walletAddress === walletAddress);
   if (!user) {
     user = { id: crypto.randomUUID(), email: `${walletAddress.slice(0,8)}…@wallet`, passwordHash: '', createdAt: Date.now(), walletAddress };
     localStorage.setItem(USERS_KEY, JSON.stringify([...users, user]));
   }
-  const authUser: AuthUser = {
-    id: user.id, email: user.email, createdAt: user.createdAt,
-    authMethod: 'wallet', walletAddress,
-    isAdmin: ADMIN_EMAILS.includes((user.email||'').toLowerCase()),
-  };
+  if (user.banned) return { user: null, banned: true, reason: user.bannedReason };
+  const authUser: AuthUser = { id: user.id, email: user.email, createdAt: user.createdAt,
+    authMethod: 'wallet', walletAddress, isAdmin: ADMIN_EMAILS.includes((user.email||'').toLowerCase()) };
   setAuthUser(authUser);
-  return authUser;
+  // Update lastLogin
+  const allUsers = getStoredUsers();
+  const idx = allUsers.findIndex(u => u.id === user!.id);
+  if (idx !== -1) { allUsers[idx].lastLogin = Date.now(); localStorage.setItem(USERS_KEY, JSON.stringify(allUsers)); }
+  return { user: authUser };
 }
 
 export async function registerUser(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
   const users = getStoredUsers();
-  if (users.find(u => u.email.toLowerCase() === email.toLowerCase()))
-    return { ok: false, error: 'Email already registered' };
+  const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (existing) return { ok: false, error: existing.banned ? 'This email is banned' : 'Email already registered' };
   const hash = await hashPassword(password);
-  const user: StoredUser = { id: crypto.randomUUID(), email, passwordHash: hash, createdAt: Date.now() };
+  const user: StoredUser = { id: crypto.randomUUID(), email, passwordHash: hash, createdAt: Date.now(), lastLogin: Date.now() };
   localStorage.setItem(USERS_KEY, JSON.stringify([...users, user]));
   setAuthUser({ id: user.id, email: user.email, createdAt: user.createdAt, authMethod: 'email',
     isAdmin: ADMIN_EMAILS.includes(email.toLowerCase()) });
@@ -96,8 +118,12 @@ export async function loginUser(email: string, password: string): Promise<{ ok: 
   const users = getStoredUsers();
   const user  = users.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (!user) return { ok: false, error: 'Email not found' };
+  if (user.banned) return { ok: false, error: `Account banned${user.bannedReason ? ': ' + user.bannedReason : ''}` };
   const hash = await hashPassword(password);
   if (hash !== user.passwordHash) return { ok: false, error: 'Wrong password' };
+  // Update lastLogin
+  const idx = users.findIndex(u => u.id === user.id);
+  if (idx !== -1) { users[idx].lastLogin = Date.now(); localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
   setAuthUser({ id: user.id, email: user.email, createdAt: user.createdAt, authMethod: 'email',
     isAdmin: ADMIN_EMAILS.includes(email.toLowerCase()) });
   return { ok: true };
@@ -112,4 +138,17 @@ export async function changePassword(userId: string, oldPassword: string, newPas
   users[idx] = { ...users[idx], passwordHash: await hashPassword(newPassword) };
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   return { ok: true };
+}
+
+// Simple page view counter
+export function trackPageView() {
+  try {
+    const key = 'vamp_page_views';
+    const views = parseInt(localStorage.getItem(key) || '0') + 1;
+    localStorage.setItem(key, String(views));
+  } catch {}
+}
+
+export function getPageViews(): number {
+  try { return parseInt(localStorage.getItem('vamp_page_views') || '0'); } catch { return 0; }
 }
