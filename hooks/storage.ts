@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 
-// Wallets Storage
+// ─── Wallets ──────────────────────────────────────────────────────────────────
 export interface StoredWallet {
   id: string;
   name: string;
   address: string;
   balance: number;
   type: 'dev' | 'volume';
-  privateKeyEncrypted: string; // We'll store encrypted
+  privateKeyEncrypted: string;
 }
 
 export function useWallets() {
@@ -17,46 +17,36 @@ export function useWallets() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('vamp_wallets');
-    if (stored) {
-      try {
-        setWallets(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse wallets:', e);
-      }
-    }
+    try {
+      const stored = localStorage.getItem('vamp_wallets');
+      if (stored) setWallets(JSON.parse(stored));
+    } catch {}
     setIsLoaded(true);
   }, []);
 
-  const addWallet = (wallet: StoredWallet) => {
-    const updated = [...wallets, wallet];
-    setWallets(updated);
-    localStorage.setItem('vamp_wallets', JSON.stringify(updated));
+  const save = (w: StoredWallet[]) => {
+    setWallets(w);
+    localStorage.setItem('vamp_wallets', JSON.stringify(w));
   };
 
-  const deleteWallet = (id: string) => {
-    const updated = wallets.filter(w => w.id !== id);
-    setWallets(updated);
-    localStorage.setItem('vamp_wallets', JSON.stringify(updated));
+  return {
+    wallets,
+    isLoaded,
+    addWallet:    (w: StoredWallet)                      => save([...wallets, w]),
+    deleteWallet: (id: string)                           => save(wallets.filter(w => w.id !== id)),
+    updateWallet: (id: string, u: Partial<StoredWallet>) => save(wallets.map(w => w.id === id ? { ...w, ...u } : w)),
   };
-
-  const updateWallet = (id: string, updates: Partial<StoredWallet>) => {
-    const updated = wallets.map(w => w.id === id ? { ...w, ...updates } : w);
-    setWallets(updated);
-    localStorage.setItem('vamp_wallets', JSON.stringify(updated));
-  };
-
-  return { wallets, addWallet, deleteWallet, updateWallet, isLoaded };
 }
 
-// Volume Sessions Storage
+// ─── Volume Sessions ──────────────────────────────────────────────────────────
 export interface VolumeSession {
   id: string;
   ca: string;
   preset: 'organic' | 'fast' | 'turbo';
-  status: 'running' | 'paused';
-  wallets: string[];
+  status: 'running' | 'paused' | 'stopping';
+  wallets: string[]; // wallet ids
   createdAt: number;
+  buySolAmount: number;
 }
 
 export function useVolumeSessions() {
@@ -64,39 +54,28 @@ export function useVolumeSessions() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('vamp_volume_sessions');
-    if (stored) {
-      try {
-        setSessions(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse sessions:', e);
-      }
-    }
+    try {
+      const stored = localStorage.getItem('vamp_volume_sessions');
+      if (stored) setSessions(JSON.parse(stored));
+    } catch {}
     setIsLoaded(true);
   }, []);
 
-  const addSession = (session: VolumeSession) => {
-    const updated = [...sessions, session];
-    setSessions(updated);
-    localStorage.setItem('vamp_volume_sessions', JSON.stringify(updated));
+  const save = (s: VolumeSession[]) => {
+    setSessions(s);
+    localStorage.setItem('vamp_volume_sessions', JSON.stringify(s));
   };
 
-  const updateSession = (id: string, updates: Partial<VolumeSession>) => {
-    const updated = sessions.map(s => s.id === id ? { ...s, ...updates } : s);
-    setSessions(updated);
-    localStorage.setItem('vamp_volume_sessions', JSON.stringify(updated));
+  return {
+    sessions,
+    isLoaded,
+    addSession:    (s: VolumeSession)                      => save([...sessions, s]),
+    deleteSession: (id: string)                            => save(sessions.filter(s => s.id !== id)),
+    updateSession: (id: string, u: Partial<VolumeSession>) => save(sessions.map(s => s.id === id ? { ...s, ...u } : s)),
   };
-
-  const deleteSession = (id: string) => {
-    const updated = sessions.filter(s => s.id !== id);
-    setSessions(updated);
-    localStorage.setItem('vamp_volume_sessions', JSON.stringify(updated));
-  };
-
-  return { sessions, addSession, updateSession, deleteSession, isLoaded };
 }
 
-// Portfolio (Launched Tokens)
+// ─── Portfolio ────────────────────────────────────────────────────────────────
 export interface PortfolioToken {
   id: string;
   ca: string;
@@ -116,28 +95,23 @@ export function usePortfolio() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('vamp_portfolio');
-    if (stored) {
-      try {
-        setTokens(JSON.parse(stored));
-      } catch (e) {
-        console.error('Failed to parse portfolio:', e);
-      }
-    }
+    try {
+      const stored = localStorage.getItem('vamp_portfolio');
+      if (stored) setTokens(JSON.parse(stored));
+    } catch {}
     setIsLoaded(true);
   }, []);
 
-  const addToken = (token: PortfolioToken) => {
-    const updated = [...tokens, token];
-    setTokens(updated);
-    localStorage.setItem('vamp_portfolio', JSON.stringify(updated));
+  const save = (t: PortfolioToken[]) => {
+    setTokens(t);
+    localStorage.setItem('vamp_portfolio', JSON.stringify(t));
   };
 
-  const updateToken = (id: string, updates: Partial<PortfolioToken>) => {
-    const updated = tokens.map(t => t.id === id ? { ...t, ...updates } : t);
-    setTokens(updated);
-    localStorage.setItem('vamp_portfolio', JSON.stringify(updated));
+  return {
+    tokens,
+    isLoaded,
+    addToken:    (t: PortfolioToken)                      => save([...tokens, t]),
+    updateToken: (id: string, u: Partial<PortfolioToken>) => save(tokens.map(t => t.id === id ? { ...t, ...u } : t)),
+    deleteToken: (id: string)                             => save(tokens.filter(t => t.id !== id)),
   };
-
-  return { tokens, addToken, updateToken, isLoaded };
 }
