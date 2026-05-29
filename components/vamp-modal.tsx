@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Check, Zap, Globe, Twitter, Send, Upload, AlertCircle, Plus, Minus, ExternalLink } from 'lucide-react';
+import { X, Loader2, Check, Zap, Globe, Twitter, Send, Upload, AlertCircle, Plus, Minus, ExternalLink, Key, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,11 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
   const [launchProgress, setLaunchProgress]       = useState({ done: 0, total: 0 });
   const [launchError, setLaunchError]             = useState('');
   const [launchedMint, setLaunchedMint]           = useState('');  // ← FIXED
+  const [launchType, setLaunchType]               = useState<'pump'|'custom'>('pump');
+  const [mintPrivateKey, setMintPrivateKey]       = useState('');
+  const [mintPreviewCA, setMintPreviewCA]         = useState('');
+  const [showMintKey, setShowMintKey]             = useState(false);
+  const [previewingMint, setPreviewingMint]       = useState(false);
   const [imageFile, setImageFile]                 = useState<File|null>(null);
   const [previewImage, setPreviewImage]           = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['pump']);
@@ -114,11 +119,12 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
         const createRes = await fetch('/api/solana/create-token', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            privateKey:   wallet.privateKeyEncrypted,
-            name:         form.name,
-            symbol:       form.symbol,
+            privateKey:     wallet.privateKeyEncrypted,
+            name:           form.name,
+            symbol:         form.symbol,
             uri,
-            buyAmountSol: buyAmt,
+            buyAmountSol:   buyAmt,
+            mintPrivateKey: launchType === 'custom' && mintPrivateKey ? mintPrivateKey : undefined,
           }),
         });
         const createData = await createRes.json();
@@ -214,6 +220,73 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
                   <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/40 font-mono">
                     CA: {tokenCA.slice(0,10)}…{tokenCA.slice(-8)}
                   </div>
+                </div>
+
+                {/* Launch Type Selector */}
+                <div>
+                  <Label className="text-base font-semibold text-white/90 mb-2 block">Launch Type</Label>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    {(['pump','custom'] as const).map(lt => (
+                      <button key={lt} onClick={() => { setLaunchType(lt); setMintPrivateKey(''); setMintPreviewCA(''); }}
+                        className={cn('p-4 rounded-xl border-2 text-center transition-all',
+                          launchType===lt ? 'border-red-500 bg-red-500/10' : 'border-white/10 hover:border-white/25')}>
+                        <div className="text-2xl mb-1">{lt==='pump' ? '💎' : '✨'}</div>
+                        <div className="font-bold text-white text-sm">{lt==='pump' ? 'Pump Launch' : 'Custom CA'}</div>
+                        <div className="text-xs text-white/40 mt-0.5">
+                          {lt==='pump' ? 'CA ends with …pump' : 'Your vanity keypair'}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom CA — mint private key input */}
+                  {launchType==='custom' && (
+                    <div className="p-4 rounded-xl border border-yellow-400/30 bg-yellow-400/5 space-y-3">
+                      <p className="text-yellow-400 text-sm font-bold flex items-center gap-2">
+                        <Key className="w-4 h-4" /> Mint Keypair (Vanity)
+                      </p>
+                      <div className="relative">
+                        <input
+                          value={mintPrivateKey}
+                          onChange={e => { setMintPrivateKey(e.target.value); setMintPreviewCA(''); }}
+                          placeholder="Paste mint private key (base58)…"
+                          type={showMintKey ? 'text' : 'password'}
+                          className="w-full bg-black/40 border border-white/15 text-white rounded-xl px-3 pr-9 h-10 font-mono text-xs focus:outline-none focus:border-yellow-400/50 placeholder:text-white/20"
+                        />
+                        <button type="button" onClick={() => setShowMintKey(v => !v)}
+                          className="absolute right-2.5 top-2.5 text-white/30 hover:text-white/60">
+                          {showMintKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {mintPrivateKey && !mintPreviewCA && (
+                        <button
+                          onClick={async () => {
+                            setPreviewingMint(true);
+                            try {
+                              const r = await fetch('/api/solana/validate-mint-key', {
+                                method: 'POST', headers: {'Content-Type':'application/json'},
+                                body: JSON.stringify({ mintPrivateKey }),
+                              });
+                              const d = await r.json();
+                              if (d.valid) setMintPreviewCA(d.mintAddress);
+                              else setLaunchError('Invalid mint keypair');
+                            } catch { setLaunchError('Validation failed'); }
+                            setPreviewingMint(false);
+                          }}
+                          disabled={previewingMint}
+                          className="w-full h-9 rounded-xl bg-yellow-400/15 hover:bg-yellow-400/25 text-yellow-400 font-bold text-sm transition-all"
+                        >
+                          {previewingMint ? <><Loader2 className="w-3 h-3 animate-spin inline mr-1" />Checking…</> : 'Preview CA →'}
+                        </button>
+                      )}
+                      {mintPreviewCA && (
+                        <div className="p-3 rounded-lg bg-green-400/10 border border-green-400/20">
+                          <p className="text-xs text-green-400/60 mb-1">Token will launch as:</p>
+                          <p className="font-mono text-green-400 text-xs break-all">{mintPreviewCA}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Wallet select */}
@@ -455,4 +528,5 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
     </>
   );
 }
+
 
