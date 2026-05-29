@@ -9,7 +9,7 @@ import { PortfolioModal } from '@/components/portfolio-modal';
 import { LandingPage }    from '@/components/landing-page';
 import { AuthModal }      from '@/components/auth-modal';
 import { AdminPanel }     from '@/components/admin-panel';
-import { getAuthUser, clearAuthUser, changePassword, AuthUser } from '@/lib/auth';
+import { getAuthUser, clearAuthUser, changePassword, AuthUser, trackPageView } from '@/lib/auth';
 import { LogOut, User, Lock, ChevronDown, X, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,7 @@ export default function Home() {
   useEffect(() => {
     setUser(getAuthUser());
     setHydrated(true);
+    trackPageView();
   }, []);
 
   useEffect(() => {
@@ -208,5 +209,7 @@ export default function Home() {
     </div>
   );
 }
+
+
 
 
