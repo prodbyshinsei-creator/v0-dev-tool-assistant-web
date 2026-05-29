@@ -21,7 +21,7 @@ export default function Home() {
     <div className="min-h-screen overflow-hidden">
       <InteractiveShaderBackground />
 
-      <div className="relative z-10 border-b border-white/10 bg-black/50 backdrop-blur-xl">
+      <div className="relative z-10 border-b border-white/8 bg-black backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/vamp-fangs-silver.png" alt="VAMP" className="w-7 h-7" style={{ mixBlendMode: 'screen' }} />
@@ -59,5 +59,6 @@ export default function Home() {
     </div>
   );
 }
+
 
 
