@@ -129,6 +129,7 @@ export function VampModal({ onClose }: VampModalProps) {
         });
       }
 
+      setLaunchedMint(mintAddresses[mintAddresses.length - 1] || '');
       setStep('launch');
     } catch (e: any) {
       setLaunchError(e.message || 'Launch failed');
@@ -385,7 +386,7 @@ export function VampModal({ onClose }: VampModalProps) {
 
             {/* LAUNCH SUCCESS */}
             {step === 'launch' && (
-              <div className="text-center py-8 space-y-4">
+              <div className="text-center py-6 space-y-4">
                 <div className="text-6xl">🚀</div>
                 <h3 className="text-2xl font-bold text-white">
                   {launches > 1 ? `${launches} Tokens Launched!` : 'Token Launched!'}
@@ -394,12 +395,30 @@ export function VampModal({ onClose }: VampModalProps) {
                   {form.symbol} добавлен в Portfolio
                   {devBuyNum > 0 && ` · Dev buy: ${totalSOL} SOL`}
                 </p>
-                <div className="flex justify-center gap-2">
+                {launchedMint && (
+                  <p className="text-xs text-white/30 font-mono break-all px-4">{launchedMint}</p>
+                )}
+                <div className="flex justify-center gap-2 py-1">
                   {[0,100,200].map(d => (
                     <div key={d} className="w-3 h-3 rounded-full bg-red-500 animate-bounce" style={{animationDelay:`${d}ms`}} />
                   ))}
                 </div>
-                <Button onClick={onClose} className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white font-bold h-11">Close</Button>
+                <div className="flex flex-col gap-2 pt-1">
+                  <Button onClick={onClose}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white font-bold h-11">
+                    Close
+                  </Button>
+                  <a href={launchedMint ? `https://gmgn.ai/sol/token/${launchedMint}` : 'https://gmgn.ai'}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#0d9488] hover:bg-[#0f766e] text-white font-bold transition-colors text-sm">
+                    🔗 Open GMGN
+                  </a>
+                  <button
+                    onClick={() => { onClose(); setTimeout(() => { const el = document.querySelector('[data-modal="portfolio"]') as HTMLElement; el?.click(); }, 100); }}
+                    className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold transition-colors text-sm border border-white/15">
+                    📊 Open Portfolio
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -408,3 +427,4 @@ export function VampModal({ onClose }: VampModalProps) {
     </>
   );
 }
+
