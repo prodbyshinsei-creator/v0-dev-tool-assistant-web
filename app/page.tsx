@@ -39,7 +39,7 @@ export default function Home() {
         <div className="w-full max-w-5xl mx-auto px-6 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {tools.map(tool => (
-              <button key={tool.id} onClick={() => setActiveModal(tool.id as any)}
+              <button key={tool.id} onClick={() => setActiveModal(tool.id as any)} data-modal={tool.id}
                 className={`group relative p-8 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 transition-all duration-300 flex flex-col items-center justify-center text-center ${tool.hoverBorder} ${tool.hoverBg}`}>
                 <img src={tool.icon} alt={tool.title} className="w-10 h-10 mb-4 transition-transform duration-300 group-hover:scale-110"
                   style={{ mixBlendMode: 'screen' }} />
@@ -59,3 +59,4 @@ export default function Home() {
     </div>
   );
 }
+
