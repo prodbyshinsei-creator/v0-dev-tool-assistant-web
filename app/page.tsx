@@ -8,33 +8,33 @@ import { WalletsModal }   from '@/components/wallets-modal';
 import { PortfolioModal } from '@/components/portfolio-modal';
 import { LandingPage }    from '@/components/landing-page';
 import { AuthModal }      from '@/components/auth-modal';
+import { AdminPanel }     from '@/components/admin-panel';
 import { getAuthUser, clearAuthUser, changePassword, AuthUser } from '@/lib/auth';
-import { LogOut, User, Lock, ChevronDown, X, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { LogOut, User, Lock, ChevronDown, X, Eye, EyeOff, CheckCircle, AlertCircle, Loader2, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Home() {
-  const [user, setUser]             = useState<AuthUser | null>(null);
-  const [authMode, setAuthMode]     = useState<'login'|'register'|null>(null);
+  const [user, setUser]               = useState<AuthUser | null>(null);
+  const [authMode, setAuthMode]       = useState<'login'|'register'|null>(null);
   const [activeModal, setActiveModal] = useState<'vamp'|'volume'|'wallets'|'portfolio'|null>(null);
-  const [hydrated, setHydrated]     = useState(false);
+  const [hydrated, setHydrated]       = useState(false);
+  const [adminOpen, setAdminOpen]     = useState(false);
 
-  // User cabinet dropdown
-  const [cabinetOpen, setCabinetOpen]   = useState(false);
-  const [changingPwd, setChangingPwd]   = useState(false);
-  const [oldPwd, setOldPwd]             = useState('');
-  const [newPwd, setNewPwd]             = useState('');
-  const [showPwd, setShowPwd]           = useState(false);
-  const [pwdMsg, setPwdMsg]             = useState('');
-  const [pwdErr, setPwdErr]             = useState('');
-  const [pwdLoading, setPwdLoading]     = useState(false);
-  const cabinetRef                      = useRef<HTMLDivElement>(null);
+  const [cabinetOpen, setCabinetOpen] = useState(false);
+  const [changingPwd, setChangingPwd] = useState(false);
+  const [oldPwd, setOldPwd]           = useState('');
+  const [newPwd, setNewPwd]           = useState('');
+  const [showPwd, setShowPwd]         = useState(false);
+  const [pwdMsg, setPwdMsg]           = useState('');
+  const [pwdErr, setPwdErr]           = useState('');
+  const [pwdLoading, setPwdLoading]   = useState(false);
+  const cabinetRef                    = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setUser(getAuthUser());
     setHydrated(true);
   }, []);
 
-  // Close cabinet on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (cabinetRef.current && !cabinetRef.current.contains(e.target as Node)) {
@@ -45,16 +45,11 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleAuthSuccess = () => {
-    setUser(getAuthUser());
-    setAuthMode(null);
-  };
+  const handleAuthSuccess = () => { setUser(getAuthUser()); setAuthMode(null); };
 
   const handleLogout = () => {
-    clearAuthUser();
-    setUser(null);
-    setCabinetOpen(false);
-    setActiveModal(null);
+    clearAuthUser(); setUser(null);
+    setCabinetOpen(false); setActiveModal(null);
   };
 
   const handleChangePwd = async () => {
@@ -71,32 +66,23 @@ export default function Home() {
 
   if (!hydrated) return null;
 
-  // ── NOT LOGGED IN → LANDING ─────────────────────────────────────────────
   if (!user) {
     return (
       <>
-        <LandingPage
-          onLogin={() => setAuthMode('login')}
-          onRegister={() => setAuthMode('register')}
-        />
+        <LandingPage onLogin={() => setAuthMode('login')} onRegister={() => setAuthMode('register')} />
         {authMode && (
-          <AuthModal
-            mode={authMode}
-            onSuccess={handleAuthSuccess}
-            onSwitchMode={m => setAuthMode(m)}
-            onClose={() => setAuthMode(null)}
-          />
+          <AuthModal mode={authMode} onSuccess={handleAuthSuccess}
+            onSwitchMode={m => setAuthMode(m)} onClose={() => setAuthMode(null)} />
         )}
       </>
     );
   }
 
-  // ── LOGGED IN → APP ─────────────────────────────────────────────────────
   const tools = [
-    { id:'vamp',      title:'VAMP',      icon:'/vamp-fangs-silver.png', desc:'Launch Tokens',  hoverBorder:'hover:border-red-500/40',   hoverBg:'hover:bg-red-500/5'   },
-    { id:'volume',    title:'VOLUME',    icon:'/vamp-blood.png',         desc:'Trading Bot',   hoverBorder:'hover:border-blue-400/40',  hoverBg:'hover:bg-blue-400/5'  },
-    { id:'wallets',   title:'WALLETS',   icon:'/vamp-blood.png',         desc:'Manage Keys',   hoverBorder:'hover:border-green-400/40', hoverBg:'hover:bg-green-400/5' },
-    { id:'portfolio', title:'PORTFOLIO', icon:'/vamp-blood.png',         desc:'Track Tokens',  hoverBorder:'hover:border-white/40',     hoverBg:'hover:bg-white/5'     },
+    { id:'vamp',      title:'VAMP',      icon:'/vamp-fangs-silver.png', desc:'Launch Tokens', hoverBorder:'hover:border-red-500/40',   hoverBg:'hover:bg-red-500/5'   },
+    { id:'volume',    title:'VOLUME',    icon:'/vamp-blood.png',         desc:'Trading Bot',  hoverBorder:'hover:border-blue-400/40',  hoverBg:'hover:bg-blue-400/5'  },
+    { id:'wallets',   title:'WALLETS',   icon:'/vamp-blood.png',         desc:'Manage Keys',  hoverBorder:'hover:border-green-400/40', hoverBg:'hover:bg-green-400/5' },
+    { id:'portfolio', title:'PORTFOLIO', icon:'/vamp-blood.png',         desc:'Track Tokens', hoverBorder:'hover:border-white/40',     hoverBg:'hover:bg-white/5'     },
   ];
 
   return (
@@ -113,37 +99,46 @@ export default function Home() {
 
           {/* User cabinet */}
           <div className="relative" ref={cabinetRef}>
-            <button
-              onClick={() => setCabinetOpen(v => !v)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 hover:border-white/30 bg-white/5 hover:bg-white/8 transition-all"
-            >
-              <div className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
-                <User className="w-3 h-3 text-red-400" />
+            <button onClick={() => setCabinetOpen(v => !v)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 hover:border-white/30 bg-white/5 hover:bg-white/8 transition-all">
+              <div className={cn(
+                'w-6 h-6 rounded-full border flex items-center justify-center',
+                user.isAdmin ? 'bg-yellow-400/20 border-yellow-400/40' : 'bg-red-500/20 border-red-500/30'
+              )}>
+                {user.isAdmin
+                  ? <Shield className="w-3 h-3 text-yellow-400" />
+                  : <User   className="w-3 h-3 text-red-400" />}
               </div>
               <span className="text-sm text-white/70 font-mono max-w-[160px] truncate">{user.email}</span>
+              {user.isAdmin && <span className="text-xs px-1.5 py-0.5 rounded-md bg-yellow-400/20 text-yellow-400 font-bold">ADMIN</span>}
               <ChevronDown className={cn('w-4 h-4 text-white/40 transition-transform', cabinetOpen && 'rotate-180')} />
             </button>
 
-            {/* Dropdown */}
             {cabinetOpen && (
               <div className="absolute right-0 top-full mt-2 w-80 bg-black border border-white/15 rounded-2xl shadow-2xl overflow-hidden z-50">
                 <div className="p-4 border-b border-white/8">
-                  <div className="text-xs text-white/40 font-mono mb-0.5">Logged in as</div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <div className="text-xs text-white/40 font-mono">Logged in as</div>
+                    {user.isAdmin && <span className="text-xs px-1.5 py-0.5 rounded-md bg-yellow-400/20 text-yellow-400 font-bold">ADMIN</span>}
+                  </div>
                   <div className="text-white font-bold text-sm truncate">{user.email}</div>
                 </div>
 
                 {!changingPwd ? (
                   <div className="p-3 space-y-1">
-                    <button
-                      onClick={() => setChangingPwd(true)}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/8 text-white/70 hover:text-white transition-all text-sm"
-                    >
+                    {/* Admin panel button — only for admin */}
+                    {user.isAdmin && (
+                      <button onClick={() => { setAdminOpen(true); setCabinetOpen(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-yellow-400/10 text-yellow-400/70 hover:text-yellow-400 transition-all text-sm font-bold">
+                        <Shield className="w-4 h-4" /> Admin Panel
+                      </button>
+                    )}
+                    <button onClick={() => setChangingPwd(true)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/8 text-white/60 hover:text-white transition-all text-sm">
                       <Lock className="w-4 h-4" /> Change Password
                     </button>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400/70 hover:text-red-400 transition-all text-sm"
-                    >
+                    <button onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400/60 hover:text-red-400 transition-all text-sm">
                       <LogOut className="w-4 h-4" /> Logout
                     </button>
                   </div>
@@ -151,9 +146,7 @@ export default function Home() {
                   <div className="p-4 space-y-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-bold text-white">Change Password</span>
-                      <button onClick={() => setChangingPwd(false)} className="text-white/30 hover:text-white">
-                        <X className="w-4 h-4" />
-                      </button>
+                      <button onClick={() => setChangingPwd(false)} className="text-white/30 hover:text-white"><X className="w-4 h-4" /></button>
                     </div>
                     {pwdMsg && <div className="flex items-center gap-2 text-xs text-green-400"><CheckCircle className="w-3 h-3" />{pwdMsg}</div>}
                     {pwdErr && <div className="flex items-center gap-2 text-xs text-red-400"><AlertCircle className="w-3 h-3" />{pwdErr}</div>}
@@ -185,12 +178,8 @@ export default function Home() {
         <div className="w-full max-w-5xl mx-auto px-6 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {tools.map(tool => (
-              <button
-                key={tool.id}
-                onClick={() => setActiveModal(tool.id as any)}
-                data-modal={tool.id}
-                className={`group relative p-8 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 transition-all duration-300 flex flex-col items-center justify-center text-center ${tool.hoverBorder} ${tool.hoverBg}`}
-              >
+              <button key={tool.id} onClick={() => setActiveModal(tool.id as any)} data-modal={tool.id}
+                className={`group relative p-8 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 transition-all duration-300 flex flex-col items-center justify-center text-center ${tool.hoverBorder} ${tool.hoverBg}`}>
                 <img src={tool.icon} alt={tool.title} className="w-10 h-10 mb-4 transition-transform duration-300 group-hover:scale-110"
                   style={{ mixBlendMode: 'screen' }} />
                 <h3 className="text-3xl md:text-4xl font-black mb-1 text-white">{tool.title}</h3>
@@ -205,6 +194,7 @@ export default function Home() {
       {activeModal==='volume'    && <VolumeModal    onClose={()=>setActiveModal(null)} />}
       {activeModal==='wallets'   && <WalletsModal   onClose={()=>setActiveModal(null)} />}
       {activeModal==='portfolio' && <PortfolioModal onClose={()=>setActiveModal(null)} />}
+      {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
     </div>
   );
 }
