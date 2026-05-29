@@ -109,7 +109,11 @@ export default function Home() {
                   ? <Shield className="w-3 h-3 text-yellow-400" />
                   : <User   className="w-3 h-3 text-red-400" />}
               </div>
-              <span className="text-sm text-white/70 font-mono max-w-[160px] truncate">{user.email}</span>
+              <span className="text-sm text-white/70 font-mono max-w-[160px] truncate">
+                {user.authMethod === 'wallet' && user.walletAddress
+                  ? user.walletAddress.slice(0,6) + '…' + user.walletAddress.slice(-4)
+                  : user.email}
+              </span>
               {user.isAdmin && <span className="text-xs px-1.5 py-0.5 rounded-md bg-yellow-400/20 text-yellow-400 font-bold">ADMIN</span>}
               <ChevronDown className={cn('w-4 h-4 text-white/40 transition-transform', cabinetOpen && 'rotate-180')} />
             </button>
@@ -121,7 +125,11 @@ export default function Home() {
                     <div className="text-xs text-white/40 font-mono">Logged in as</div>
                     {user.isAdmin && <span className="text-xs px-1.5 py-0.5 rounded-md bg-yellow-400/20 text-yellow-400 font-bold">ADMIN</span>}
                   </div>
-                  <div className="text-white font-bold text-sm truncate">{user.email}</div>
+                  <div className="text-white font-bold text-sm truncate">
+                    {user.authMethod === 'wallet' && user.walletAddress
+                      ? user.walletAddress.slice(0,8) + '…' + user.walletAddress.slice(-6)
+                      : user.email}
+                  </div>
                 </div>
 
                 {!changingPwd ? (
@@ -133,10 +141,12 @@ export default function Home() {
                         <Shield className="w-4 h-4" /> Admin Panel
                       </button>
                     )}
+                    {user.authMethod !== 'wallet' && (
                     <button onClick={() => setChangingPwd(true)}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/8 text-white/60 hover:text-white transition-all text-sm">
                       <Lock className="w-4 h-4" /> Change Password
                     </button>
+                    )}
                     <button onClick={handleLogout}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400/60 hover:text-red-400 transition-all text-sm">
                       <LogOut className="w-4 h-4" /> Logout
@@ -198,3 +208,5 @@ export default function Home() {
     </div>
   );
 }
+
+
