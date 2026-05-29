@@ -11,12 +11,12 @@ import { useWallets, usePortfolio } from '@/hooks/storage';
 interface VampModalProps { onClose: () => void; }
 
 const PLATFORMS = [
-  { id: 'pump', label: 'Pump' },
-  { id: 'bonk', label: 'Bonk' },
-  { id: 'studio', label: 'Studio' },
-  { id: 'bags', label: 'Bags' },
-  { id: 'raydium', label: 'Raydium' },
-  { id: 'meteora', label: 'Meteora' },
+  { id: 'pump',    label: 'Pump',    logo: '/platforms/pump.png'    },
+  { id: 'bonk',    label: 'Bonk',    logo: '/platforms/bonk.png'    },
+  { id: 'studio',  label: 'Studio',  logo: '/platforms/studio.jpg'  },
+  { id: 'bags',    label: 'Bags',    logo: '/platforms/bags.png'     },
+  { id: 'raydium', label: 'Raydium', logo: '/platforms/raydium.jpg'  },
+  { id: 'meteora', label: 'Meteora', logo: '/platforms/meteora.png'  },
 ];
 
 export function VampModal({ onClose }: VampModalProps) {
@@ -35,13 +35,12 @@ export function VampModal({ onClose }: VampModalProps) {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['pump']);
 
   const [form, setForm] = useState({
-    name: '', symbol: '', supply: '', description: '',
+    name: '', symbol: '', description: '',
     website: '', twitter: '', telegram: '',
   });
 
   const devWallets = wallets.filter(w => w.type === 'dev');
 
-  /* ── Auto-fetch on CA input ─────────────────────────────────────── */
   useEffect(() => {
     if (tokenCA.length < 20) return;
     const t = setTimeout(fetchTokenInfo, 800);
@@ -53,13 +52,12 @@ export function VampModal({ onClose }: VampModalProps) {
     setIsFetching(true);
     setLaunchError('');
     try {
-      const res = await fetch(`/api/solana/token-info?ca=${tokenCA}`);
+      const res  = await fetch(`/api/solana/token-info?ca=${tokenCA}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setForm({
         name:        data.name        || '',
         symbol:      data.symbol      || '',
-        supply:      data.supply      || '',
         description: data.description || '',
         website:     data.website     || '',
         twitter:     data.twitter     || '',
@@ -74,7 +72,6 @@ export function VampModal({ onClose }: VampModalProps) {
     }
   };
 
-  /* ── Image file select ──────────────────────────────────────────── */
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -82,17 +79,14 @@ export function VampModal({ onClose }: VampModalProps) {
     setPreviewImage(URL.createObjectURL(file));
   };
 
-  /* ── Launch ─────────────────────────────────────────────────────── */
   const handleLaunch = async () => {
     if (!selectedWallet) return;
     setIsLaunching(true);
     setLaunchError('');
-
     try {
       const wallet = wallets.find(w => w.id === selectedWallet);
       if (!wallet) throw new Error('Wallet not found');
 
-      // 1. Upload metadata to IPFS
       const ipfsForm = new FormData();
       if (imageFile) ipfsForm.append('file', imageFile);
       ipfsForm.append('name',        form.name);
@@ -102,40 +96,25 @@ export function VampModal({ onClose }: VampModalProps) {
       if (form.twitter)  ipfsForm.append('twitter',  form.twitter);
       if (form.telegram) ipfsForm.append('telegram', form.telegram);
 
-      const ipfsRes = await fetch('/api/solana/upload-ipfs', {
-        method: 'POST', body: ipfsForm,
-      });
+      const ipfsRes = await fetch('/api/solana/upload-ipfs', { method: 'POST', body: ipfsForm });
       const { uri, error: ipfsErr } = await ipfsRes.json();
       if (ipfsErr || !uri) throw new Error(ipfsErr || 'IPFS upload failed');
 
-      // 2. Create token on-chain
       const createRes = await fetch('/api/solana/create-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          privateKey:   wallet.privateKeyEncrypted,
-          name:         form.name,
-          symbol:       form.symbol,
-          uri,
-          buyAmountSol: 0,
-        }),
+        body: JSON.stringify({ privateKey: wallet.privateKeyEncrypted, name: form.name, symbol: form.symbol, uri, buyAmountSol: 0 }),
       });
       const createData = await createRes.json();
       if (!createData.success) throw new Error(createData.error || 'Create failed');
 
-      // 3. Save to portfolio
       addToken({
-        id: createData.mintAddress,
-        ca: createData.mintAddress,
-        name: form.name,
-        symbol: form.symbol,
-        launchPrice: 0.000001,
-        currentPrice: 0.000001,
+        id: createData.mintAddress, ca: createData.mintAddress,
+        name: form.name, symbol: form.symbol,
+        launchPrice: 0.000001, currentPrice: 0.000001,
         bought: 0, sold: 0, profit: 0,
-        image: previewImage,
-        launchedAt: Date.now(),
+        image: previewImage, launchedAt: Date.now(),
       });
-
       setStep('launch');
     } catch (e: any) {
       setLaunchError(e.message || 'Launch failed');
@@ -168,14 +147,13 @@ export function VampModal({ onClose }: VampModalProps) {
               </button>
             </div>
 
-            {/* Error banner */}
             {launchError && (
               <div className="mb-5 flex items-center gap-2 px-4 py-2 bg-red-500/15 border border-red-500/30 rounded-xl text-red-400 text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />{launchError}
               </div>
             )}
 
-            {/* ── INPUT ── */}
+            {/* INPUT */}
             {step === 'input' && (
               <div className="space-y-4">
                 <div>
@@ -186,20 +164,18 @@ export function VampModal({ onClose }: VampModalProps) {
                       className="bg-white/5 border-white/15 text-white placeholder:text-white/30 h-12 font-mono" />
                     {isFetching && <Loader2 className="absolute right-4 top-3.5 w-5 h-5 animate-spin text-red-500" />}
                   </div>
-                  <p className="text-sm text-white/40 mt-1">Вставь CA — данные подгрузятся автоматически</p>
+                  <p className="text-sm text-white/40 mt-1">Данные загрузятся автоматически</p>
                 </div>
               </div>
             )}
 
-            {/* ── PREVIEW ── */}
+            {/* PREVIEW */}
             {step === 'preview' && (
               <div className="space-y-5">
                 <div className="p-5 rounded-2xl border border-red-500/30 bg-red-500/5">
                   <div className="flex gap-4">
                     <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 flex items-center justify-center">
-                      {previewImage
-                        ? <img src={previewImage} className="w-full h-full object-cover" alt="" />
-                        : <span className="text-2xl">🪙</span>}
+                      {previewImage ? <img src={previewImage} className="w-full h-full object-cover" alt="" /> : <span className="text-2xl">🪙</span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2">
@@ -223,19 +199,13 @@ export function VampModal({ onClose }: VampModalProps) {
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">Dev Wallet</Label>
                   {devWallets.length === 0 ? (
-                    <div className="p-4 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">
-                      Создай Dev Wallet в разделе WALLETS
-                    </div>
+                    <div className="p-4 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">Создай Dev Wallet в WALLETS</div>
                   ) : (
                     <div className="space-y-2 border border-white/10 rounded-xl p-3 max-h-40 overflow-y-auto">
                       {devWallets.map(w => (
                         <button key={w.id} onClick={() => setSelectedWallet(w.id)}
                           className={cn('w-full flex items-center justify-between p-3 rounded-lg transition-all',
-                            selectedWallet === w.id
-                              ? 'border-2 border-red-500 bg-red-500/10'
-                              : 'border border-white/10 hover:border-white/25'
-                          )}
-                        >
+                            selectedWallet === w.id ? 'border-2 border-red-500 bg-red-500/10' : 'border border-white/10 hover:border-white/25')}>
                           <div className="text-left">
                             <div className="font-mono font-bold text-white text-sm">{w.name}</div>
                             <div className="text-xs text-white/40">{w.address.slice(0,14)}… · {w.balance.toFixed(4)} SOL</div>
@@ -257,12 +227,12 @@ export function VampModal({ onClose }: VampModalProps) {
               </div>
             )}
 
-            {/* ── EDIT ── */}
+            {/* EDIT */}
             {step === 'edit' && (
               <div className="space-y-4">
 
-                {/* Image upload — click to change */}
-                <div className="space-y-2">
+                {/* Image upload */}
+                <div className="space-y-1.5">
                   <Label className="text-sm font-semibold text-white/80">Token Image</Label>
                   <div
                     className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-dashed border-white/20 cursor-pointer hover:border-red-500/60 transition-colors group"
@@ -270,16 +240,14 @@ export function VampModal({ onClose }: VampModalProps) {
                   >
                     {previewImage
                       ? <img src={previewImage} className="w-full h-full object-cover" alt="" />
-                      : <div className="w-full h-full flex items-center justify-center text-3xl">🪙</div>
-                    }
-                    {/* Hover overlay */}
+                      : <div className="w-full h-full flex items-center justify-center text-3xl">🪙</div>}
                     <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity">
                       <Upload className="w-5 h-5 text-white" />
                       <span className="text-xs text-white">Change</span>
                     </div>
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-                  <p className="text-xs text-white/40">Click to upload image from computer</p>
+                  <p className="text-xs text-white/40">Click to upload from computer</p>
                 </div>
 
                 {/* Name + Symbol */}
@@ -294,13 +262,6 @@ export function VampModal({ onClose }: VampModalProps) {
                     <Input value={form.symbol} onChange={e => setForm({...form, symbol: e.target.value})}
                       className="bg-white/5 border-white/15 text-white h-10 font-mono" />
                   </div>
-                </div>
-
-                {/* Supply */}
-                <div>
-                  <Label className="text-sm text-white/70 mb-1 block">Supply</Label>
-                  <Input value={form.supply} onChange={e => setForm({...form, supply: e.target.value})}
-                    className="bg-white/5 border-white/15 text-white h-10 font-mono" />
                 </div>
 
                 {/* Description */}
@@ -333,19 +294,34 @@ export function VampModal({ onClose }: VampModalProps) {
                   </div>
                 </div>
 
-                {/* Platforms */}
+                {/* Platforms — round logos */}
                 <div>
                   <Label className="text-sm text-white/70 mb-2 block">Platforms</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {PLATFORMS.map(p => (
-                      <button key={p.id} onClick={() => togglePlatform(p.id)}
-                        className={cn('px-4 py-1.5 rounded-lg text-sm font-bold border transition-all',
-                          selectedPlatforms.includes(p.id)
-                            ? 'bg-red-500 border-red-500 text-white'
-                            : 'bg-white/5 border-white/15 text-white/60 hover:border-white/30'
-                        )}
-                      >{p.label}</button>
-                    ))}
+                  <div className="flex flex-wrap gap-3">
+                    {PLATFORMS.map(p => {
+                      const active = selectedPlatforms.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => togglePlatform(p.id)}
+                          className={cn(
+                            'flex flex-col items-center gap-1.5 transition-all',
+                          )}
+                        >
+                          <div className={cn(
+                            'w-11 h-11 rounded-full overflow-hidden border-2 transition-all',
+                            active
+                              ? 'border-red-500 ring-2 ring-red-500/30'
+                              : 'border-white/15 opacity-50 hover:opacity-80 hover:border-white/30'
+                          )}>
+                            <img src={p.logo} alt={p.label} className="w-full h-full object-cover" />
+                          </div>
+                          <span className={cn('text-xs font-medium', active ? 'text-red-400' : 'text-white/40')}>
+                            {p.label}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -356,7 +332,7 @@ export function VampModal({ onClose }: VampModalProps) {
               </div>
             )}
 
-            {/* ── LAUNCH SUCCESS ── */}
+            {/* LAUNCH SUCCESS */}
             {step === 'launch' && (
               <div className="text-center py-8 space-y-4">
                 <div className="text-6xl">🚀</div>
