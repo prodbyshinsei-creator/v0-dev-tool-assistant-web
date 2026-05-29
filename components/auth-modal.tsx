@@ -23,8 +23,8 @@ function generateCaptcha() {
 }
 
 const ADAPTER_WALLETS = [
-  { name: 'Phantom',  icon: '/phantom-icon.png',  fallback: '👻' },
-  { name: 'Solflare', icon: '/solflare-icon.png',  fallback: '☀️' },
+  { name: 'Phantom',  icon: '/phantom-icon.webp', fallback: '👻' },
+  { name: 'Solflare', icon: '/solflare-icon.svg',  fallback: '☀️' },
 ];
 
 export function AuthModal({ mode, onSuccess, onSwitchMode, onClose }: AuthModalProps) {
@@ -135,8 +135,9 @@ export function AuthModal({ mode, onSuccess, onSwitchMode, onClose }: AuthModalP
                     disabled={!!connectingWallet || !!success}
                     className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border border-white/15 bg-white/5 hover:border-white/30 hover:bg-white/8 transition-all group"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 text-xl">
-                      {aw.fallback}
+                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 flex items-center justify-center flex-shrink-0">
+                      <img src={aw.icon} alt={aw.name} className="w-8 h-8 rounded-lg object-contain"
+                        onError={e => { (e.currentTarget as any).style.display='none'; (e.currentTarget.parentNode as any).textContent=aw.fallback; }} />
                     </div>
                     <div className="text-left flex-1">
                       <div className="text-white font-bold">{aw.name}</div>
@@ -256,3 +257,5 @@ export function AuthModal({ mode, onSuccess, onSwitchMode, onClose }: AuthModalP
     </>
   );
 }
+
+
