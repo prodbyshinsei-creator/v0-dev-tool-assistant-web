@@ -14,12 +14,12 @@ interface VampModalProps {
 }
 
 const PLATFORMS = [
-  { id: 'pump',    label: 'Pump',    logo: '/platforms/pump.png'    },
-  { id: 'bonk',    label: 'Bonk',    logo: '/platforms/bonk.png'    },
-  { id: 'studio',  label: 'Studio',  logo: '/platforms/studio.jpg'  },
-  { id: 'bags',    label: 'Bags',    logo: '/platforms/bags.png'     },
-  { id: 'raydium', label: 'Raydium', logo: '/platforms/raydium.jpg'  },
-  { id: 'meteora', label: 'Meteora', logo: '/platforms/meteora.png'  },
+  { id: 'pump',    label: 'Pump',    logo: '/platforms/pump.png',    soon: false },
+  { id: 'bonk',    label: 'Bonk',    logo: '/platforms/bonk.png',    soon: true  },
+  { id: 'studio',  label: 'Studio',  logo: '/platforms/studio.jpg',  soon: true  },
+  { id: 'bags',    label: 'Bags',    logo: '/platforms/bags.png',     soon: true  },
+  { id: 'raydium', label: 'Raydium', logo: '/platforms/raydium.jpg',  soon: true  },
+  { id: 'meteora', label: 'Meteora', logo: '/platforms/meteora.png',  soon: true  },
 ];
 
 export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
@@ -380,6 +380,19 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
                   <div className="flex flex-wrap gap-3">
                     {PLATFORMS.map(p => {
                       const active = selectedPlatforms.includes(p.id);
+                      if (p.soon) {
+                        return (
+                          <div key={p.id} className="flex flex-col items-center gap-1.5 relative group">
+                            <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-white/10 opacity-30 cursor-not-allowed grayscale">
+                              <img src={p.logo} alt={p.label} className="w-full h-full object-cover" />
+                            </div>
+                            <span className="text-xs font-medium text-white/20">{p.label}</span>
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black border border-white/20 rounded-lg text-xs text-white/60 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              Soon
+                            </div>
+                          </div>
+                        );
+                      }
                       return (
                         <button key={p.id} onClick={() => togglePlatform(p.id)} className="flex flex-col items-center gap-1.5 transition-all">
                           <div className={cn('w-11 h-11 rounded-full overflow-hidden border-2 transition-all',
@@ -442,3 +455,4 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
     </>
   );
 }
+
