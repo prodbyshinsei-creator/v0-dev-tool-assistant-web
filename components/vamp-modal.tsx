@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useWallets, usePortfolio } from '@/hooks/storage';
+import { getAvailablePumpCA, markPumpCAUsed } from '@/lib/pump-ca';
 
 interface VampModalProps {
   onClose:          () => void;
@@ -116,6 +117,13 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
       const buyAmt = parseFloat(devBuySOL) || 0;
 
       for (let i = 0; i < launches; i++) {
+        // For pump launch: auto-pick a CA from the pool
+        let finalMintKey = launchType === 'custom' && mintPrivateKey ? mintPrivateKey : undefined;
+        let pumpCAId: string | null = null;
+        if (launchType === 'pump') {
+          const poolEntry = getAvailablePumpCA();
+          if (poolEntry) { finalMintKey = poolEntry.privateKey; pumpCAId = poolEntry.id; }
+        }
         const createRes = await fetch('/api/solana/create-token', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -124,7 +132,7 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
             symbol:         form.symbol,
             uri,
             buyAmountSol:   buyAmt,
-            mintPrivateKey: launchType === 'custom' && mintPrivateKey ? mintPrivateKey : undefined,
+            mintPrivateKey: finalMintKey,
           }),
         });
         const createData = await createRes.json();
@@ -142,6 +150,7 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
       }
 
       setLaunchedMint(mintAddresses[mintAddresses.length - 1] || '');
+      if (pumpCAId) markPumpCAUsed(pumpCAId);
       setStep('launch');
     } catch (e: any) {
       setLaunchError(e.message || 'Launch failed');
@@ -231,9 +240,9 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
                         className={cn('p-4 rounded-xl border-2 text-center transition-all',
                           launchType===lt ? 'border-red-500 bg-red-500/10' : 'border-white/10 hover:border-white/25')}>
                         <div className="text-2xl mb-1">{lt==='pump' ? '💎' : '✨'}</div>
-                        <div className="font-bold text-white text-sm">{lt==='pump' ? 'Pump Launch' : 'Custom CA'}</div>
+                        <div className="font-bold text-white text-sm">{lt==='pump' ? 'Default Launch' : 'Custom CA'}</div>
                         <div className="text-xs text-white/40 mt-0.5">
-                          {lt==='pump' ? 'CA ends with …pump' : 'Your vanity keypair'}
+                          {lt==='pump' ? 'with pump CA' : 'Your vanity keypair'}
                         </div>
                       </button>
                     ))}
@@ -528,5 +537,7 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
     </>
   );
 }
+
+
 
 
