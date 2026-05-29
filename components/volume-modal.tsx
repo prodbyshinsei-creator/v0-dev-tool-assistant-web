@@ -1,91 +1,26 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Loader2, Play, Pause, Power, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { useWallets, useVolumeSessions, VolumeSession, StoredWallet } from '@/hooks/storage';
+import { useWallets, useVolumeSessions, VolumeSession } from '@/hooks/storage';
+import {
+  startLoops, pauseLoops, stopLoops, getStats,
+  subscribe, unsubscribe,
+} from '@/lib/volume-engine';
 
 interface VolumeModalProps { onClose: () => void; }
 
-// Module-level loop tracking
-const runningLoops = new Set<string>();
+const SOL_PRESETS = ['0.005–0.1','0.1–0.15','0.15–0.25','0.25–0.5','0.5–1.0','1–5'];
 
-const DELAYS = {
-  organic: { min: 30_000, max: 90_000 },
-  fast:    { min: 5_000,  max: 20_000 },
-  turbo:   { min: 2_000,  max: 5_000  },
-};
-
-const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-const rand  = (a: number, b: number) => a + Math.random() * (b - a);
-
-// Parse range string like "0.1-0.5" or "0.05" → random amount in range
-function parseRange(s: string): number {
-  const clean = s.trim().replace(',', '.');
-  if (clean.includes('-')) {
-    const [a, b] = clean.split('-').map(Number);
-    if (!isNaN(a) && !isNaN(b) && b > a) return rand(a, b);
-    if (!isNaN(a)) return a;
-  }
-  const v = parseFloat(clean);
-  return isNaN(v) ? 0.002 : v;
-}
-
-async function runWalletLoop(
-  sessionId: string,
-  wallet:    StoredWallet,
-  ca:        string,
-  preset:    keyof typeof DELAYS,
-  buySolRange: string,
-  onTx:      () => void,
-) {
-  const key = `${sessionId}:${wallet.id}`;
-  const { min, max } = DELAYS[preset] ?? DELAYS.organic;
-
-  while (runningLoops.has(key)) {
-    try {
-      const buyAmt = parseRange(buySolRange);
-
-      // BUY
-      const buyRes = await fetch('/api/solana/trade', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ privateKey: wallet.privateKeyEncrypted, action: 'buy', mint: ca, amount: buyAmt, denominatedInSol: true }),
-      });
-      if (buyRes.ok) onTx();
-
-      if (!runningLoops.has(key)) break;
-      await sleep(rand(500, 1500));
-      if (!runningLoops.has(key)) break;
-
-      // SELL 100%
-      const sellRes = await fetch('/api/solana/trade', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ privateKey: wallet.privateKeyEncrypted, action: 'sell', mint: ca, amount: '100%', denominatedInSol: false }),
-      });
-      if (sellRes.ok) onTx();
-
-      if (!runningLoops.has(key)) break;
-      await sleep(rand(min, max));
-    } catch (err) {
-      console.error(`Volume loop [${wallet.name}]:`, err);
-      if (!runningLoops.has(key)) break;
-      await sleep(5_000);
-    }
-  }
-}
-
-// SOL range presets (matching the bot)
-const SOL_PRESETS = [
-  '0.005–0.1',
-  '0.1–0.15',
-  '0.15–0.25',
-  '0.25–0.5',
-  '0.5–1.0',
-  '1–5',
-];
+const PRESETS = [
+  { key: 'organic', icon: '🌱', label: 'ORGANIC', delay: '30–90s', txh: '2–4'   },
+  { key: 'fast',    icon: '⚡', label: 'FAST',    delay: '5–20s',  txh: '8–12'  },
+  { key: 'turbo',   icon: '🔥', label: 'TURBO',   delay: '2–5s',   txh: '20–30' },
+] as const;
 
 export function VolumeModal({ onClose }: VolumeModalProps) {
   const { wallets }                                            = useWallets();
@@ -95,98 +30,75 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
   const [tokenCA, setTokenCA]         = useState('');
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [preset, setPreset]           = useState<'organic'|'fast'|'turbo'>('organic');
-  const [buySolRange, setBuySolRange] = useState('0.1–0.15');  // range string
+  const [buySolRange, setBuySolRange] = useState('0.1–0.15');
   const [isStarting, setIsStarting]   = useState(false);
   const [stoppingId, setStoppingId]   = useState<string|null>(null);
 
-  const statsRef = useRef<Record<string, { tx: number; fees: number }>>({});
-  const [stats, setStats] = useState<Record<string, { tx: number; fees: number }>>({});
-
-  const volumeWallets = wallets.filter(w => w.type === 'volume');
+  // Force re-render when engine bumps stats
+  const [tick, setTick] = useState(0);
+  const onEngineUpdate = useCallback(() => setTick(t => t + 1), []);
 
   useEffect(() => {
-    sessions.filter(s => s.status === 'running').forEach(s => launchLoops(s));
-    return () => { runningLoops.clear(); };
+    subscribe(onEngineUpdate);
+
+    // Resume any sessions that were running before modal was closed
+    sessions.filter(s => s.status === 'running').forEach(session => {
+      const sessionWallets = wallets.filter(w => session.wallets.includes(w.id));
+      startLoops(session, sessionWallets);
+    });
+
+    return () => {
+      unsubscribe(onEngineUpdate);
+      // NOTE: loops are NOT stopped on modal close — they keep running in the engine
+    };
   }, []); // eslint-disable-line
 
-  const launchLoops = (session: VolumeSession) => {
-    wallets.filter(w => session.wallets.includes(w.id)).forEach(wallet => {
-      const key = `${session.id}:${wallet.id}`;
-      if (runningLoops.has(key)) return;
-      runningLoops.add(key);
-      runWalletLoop(
-        session.id, wallet, session.ca, session.preset,
-        session.buySolRange || String(session.buySolAmount),
-        () => {
-          statsRef.current[session.id] = {
-            tx:   (statsRef.current[session.id]?.tx   || 0) + 1,
-            fees: (statsRef.current[session.id]?.fees || 0) + 0.00003,
-          };
-          setStats({ ...statsRef.current });
-        },
-      );
-    });
-  };
+  const volumeWallets = wallets.filter(w => w.type === 'volume');
+  const activeSessions = sessions.filter(s => s.status !== 'stopping');
 
   const handleStart = async () => {
     if (!tokenCA || selectedWallets.length === 0) return;
     setIsStarting(true);
-    await sleep(300);
-    const buyAmt = parseRange(buySolRange);
+    await new Promise(r => setTimeout(r, 300));
+
     const session: VolumeSession = {
       id: crypto.randomUUID(), ca: tokenCA, preset,
       status: 'running', wallets: selectedWallets,
       createdAt: Date.now(),
-      buySolAmount: buyAmt,
+      buySolAmount: 0,
       buySolRange,
     };
     addSession(session);
-    launchLoops(session);
+
+    const sessionWallets = wallets.filter(w => selectedWallets.includes(w.id));
+    startLoops(session, sessionWallets);
+
     setTokenCA(''); setSelectedWallets([]);
     setIsStarting(false); setTab('sessions');
   };
 
   const togglePause = (session: VolumeSession) => {
+    const sw = wallets.filter(w => session.wallets.includes(w.id));
     if (session.status === 'running') {
-      wallets.filter(w => session.wallets.includes(w.id)).forEach(w => runningLoops.delete(`${session.id}:${w.id}`));
+      pauseLoops(session.id, sw);
       updateSession(session.id, { status: 'paused' });
     } else {
       updateSession(session.id, { status: 'running' });
-      launchLoops({ ...session, status: 'running' });
+      startLoops({ ...session, status: 'running' }, sw);
     }
   };
 
   const handleStop = async (session: VolumeSession) => {
     setStoppingId(session.id);
-    wallets.filter(w => session.wallets.includes(w.id)).forEach(w => runningLoops.delete(`${session.id}:${w.id}`));
     updateSession(session.id, { status: 'stopping' });
-    await sleep(2000);
-
-    await Promise.all(
-      wallets.filter(w => session.wallets.includes(w.id)).map(async wallet => {
-        try {
-          await fetch('/api/solana/trade', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ privateKey: wallet.privateKeyEncrypted, action: 'sell', mint: session.ca, amount: '100%', denominatedInSol: false }),
-          });
-        } catch (e) { console.error('Stop-sell:', wallet.name, e); }
-      })
-    );
-
+    const sw = wallets.filter(w => session.wallets.includes(w.id));
+    await stopLoops(session, sw);
     deleteSession(session.id);
     setStoppingId(null);
   };
 
   const toggleWallet = (id: string) =>
     setSelectedWallets(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-
-  const activeSessions = sessions.filter(s => s.status !== 'stopping');
-
-  const PRESETS = [
-    { key: 'organic', icon: '🌱', label: 'ORGANIC', delay: '30–90s', txh: '2–4' },
-    { key: 'fast',    icon: '⚡', label: 'FAST',    delay: '5–20s',  txh: '8–12' },
-    { key: 'turbo',   icon: '🔥', label: 'TURBO',   delay: '2–5s',   txh: '20–30' },
-  ] as const;
 
   return (
     <>
@@ -196,31 +108,30 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
           onClick={e => e.stopPropagation()}>
           <div className="p-7">
 
-            {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <img src="/vamp-blood.png" alt="" className="w-9 h-9" style={{ mixBlendMode: 'screen' }} />
                 <h2 className="text-3xl font-mono font-bold text-blue-400">VOLUME</h2>
               </div>
-              <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* Tabs */}
             <div className="flex gap-2 mb-6">
-              {(['start', 'sessions'] as const).map(t => (
+              {(['start','sessions'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   className={cn('flex-1 py-2.5 rounded-xl font-bold text-base transition-all',
-                    tab === t ? 'bg-blue-400 text-black' : 'bg-white/5 border border-white/15 text-white/70 hover:border-white/30')}>
-                  {t === 'start' ? 'Start Session' : `Active (${activeSessions.length})`}
+                    tab===t ? 'bg-blue-400 text-black' : 'bg-white/5 border border-white/15 text-white/70 hover:border-white/30')}>
+                  {t==='start' ? 'Start Session' : `Active (${activeSessions.length})`}
                 </button>
               ))}
             </div>
 
-            {/* ── START TAB ── */}
-            {tab === 'start' && (
+            {/* ── START ── */}
+            {tab==='start' && (
               <div className="space-y-5">
 
-                {/* Token CA */}
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">Token CA</Label>
                   <Input value={tokenCA} onChange={e => setTokenCA(e.target.value)}
@@ -228,14 +139,13 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                     className="bg-white/5 border-white/15 text-white placeholder:text-white/30 h-11 font-mono" />
                 </div>
 
-                {/* Speed preset */}
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">Speed</Label>
                   <div className="grid grid-cols-3 gap-3">
                     {PRESETS.map(p => (
                       <button key={p.key} onClick={() => setPreset(p.key)}
                         className={cn('p-4 rounded-xl border-2 text-center transition-all',
-                          preset === p.key ? 'border-blue-400 bg-blue-400/10' : 'border-white/10 hover:border-white/25')}>
+                          preset===p.key ? 'border-blue-400 bg-blue-400/10' : 'border-white/10 hover:border-white/25')}>
                         <div className="text-3xl mb-1">{p.icon}</div>
                         <div className="font-bold text-white text-sm">{p.label}</div>
                         <div className="text-xs text-white/50 mt-0.5">{p.delay}</div>
@@ -245,42 +155,30 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                   </div>
                 </div>
 
-                {/* SOL amount — presets like the bot + manual */}
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">SOL per trade</Label>
-
-                  {/* Preset buttons */}
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     {SOL_PRESETS.map(p => (
-                      <button key={p}
-                        onClick={() => setBuySolRange(p)}
-                        className={cn(
-                          'py-2 px-3 rounded-xl text-sm font-mono font-bold border transition-all',
-                          buySolRange === p
+                      <button key={p} onClick={() => setBuySolRange(p)}
+                        className={cn('py-2 px-3 rounded-xl text-sm font-mono font-bold border transition-all',
+                          buySolRange===p
                             ? 'bg-blue-400 border-blue-400 text-black'
-                            : 'bg-white/5 border-white/15 text-white/70 hover:border-blue-400/40 hover:text-white'
-                        )}>
+                            : 'bg-white/5 border-white/15 text-white/70 hover:border-blue-400/40 hover:text-white')}>
                         {p} SOL
                       </button>
                     ))}
                   </div>
-
-                  {/* Manual range input */}
                   <div className="flex items-center gap-3">
-                    <input
-                      value={buySolRange}
-                      onChange={e => setBuySolRange(e.target.value)}
+                    <input value={buySolRange} onChange={e => setBuySolRange(e.target.value)}
                       placeholder="e.g. 0.1–1  or  0.05"
-                      className="flex-1 bg-white/5 border border-white/15 text-white rounded-xl px-3 h-10 font-mono text-sm focus:outline-none focus:border-blue-400/50 placeholder:text-white/20"
-                    />
+                      className="flex-1 bg-white/5 border border-white/15 text-white rounded-xl px-3 h-10 font-mono text-sm focus:outline-none focus:border-blue-400/50 placeholder:text-white/20" />
                     <span className="text-white/40 text-sm font-mono">SOL</span>
                   </div>
                   <p className="text-xs text-white/30 mt-1.5">
-                    Диапазон: <span className="text-white/50 font-mono">0.1–0.5</span> = случайная сумма между 0.1 и 0.5 SOL каждый трейд
+                    Диапазон <span className="font-mono text-white/50">0.1–0.5</span> = случайная сумма каждый трейд
                   </p>
                 </div>
 
-                {/* Wallet selection */}
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">
                     Volume Wallets ({volumeWallets.length})
@@ -317,16 +215,16 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
               </div>
             )}
 
-            {/* ── SESSIONS TAB ── */}
-            {tab === 'sessions' && (
+            {/* ── SESSIONS ── */}
+            {tab==='sessions' && (
               <div className="space-y-3">
                 {activeSessions.length === 0 ? (
                   <div className="p-10 text-center text-white/40">Нет активных сессий</div>
                 ) : activeSessions.map(session => {
-                  const s       = stats[session.id] || { tx: 0, fees: 0 };
-                  const elapsed = Math.floor((Date.now() - session.createdAt) / 60000);
+                  const s        = getStats(session.id); // reads from engine, not component state
+                  const elapsed  = Math.floor((Date.now() - s.startedAt) / 60000);
                   const stopping = stoppingId === session.id;
-                  const range   = session.buySolRange || String(session.buySolAmount);
+                  const range    = session.buySolRange || String(session.buySolAmount);
                   return (
                     <div key={session.id} className="p-4 rounded-xl border border-white/10 bg-white/3">
                       <div className="flex items-start justify-between">
@@ -342,8 +240,8 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                               {session.preset.toUpperCase()}
                             </span>
                             <span className={cn('text-xs px-2 py-0.5 rounded-full',
-                              stopping ? 'bg-orange-500/20 text-orange-400' :
-                              session.status==='running' ? 'bg-blue-400/20 text-blue-400' :
+                              stopping                    ? 'bg-orange-500/20 text-orange-400' :
+                              session.status==='running'  ? 'bg-blue-400/20 text-blue-400' :
                               'bg-yellow-500/20 text-yellow-400')}>
                               {stopping ? '⏳ SELLING…' : session.status==='running' ? '🟢 RUNNING' : '🟡 PAUSED'}
                             </span>
@@ -354,7 +252,7 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                             <div><div className="text-white/40">Fees</div><div className="text-white font-mono">{s.fees.toFixed(5)}</div></div>
                             <div><div className="text-white/40">Time</div><div className="text-white font-mono">{elapsed}m</div></div>
                           </div>
-                          <div className="text-xs text-white/30 mt-1 font-mono">{range} SOL/trade · sell 100% each</div>
+                          <div className="text-xs text-white/30 mt-1 font-mono">{range} SOL/trade</div>
                         </div>
                         <div className="flex gap-2 ml-3">
                           {!stopping && (
@@ -364,7 +262,8 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                             </Button>
                           )}
                           <Button variant="outline" size="sm"
-                            onClick={() => !stopping && handleStop(session)} disabled={!!stoppingId}
+                            onClick={() => !stopping && handleStop(session)}
+                            disabled={!!stoppingId}
                             className="border-red-500/30 hover:border-red-500/60 hover:bg-red-500/10 text-red-400 h-9 w-9 p-0">
                             {stopping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
                           </Button>
@@ -373,14 +272,16 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                     </div>
                   );
                 })}
+
                 {activeSessions.length > 0 && (
                   <div className="flex items-center gap-2 px-3 py-2 bg-blue-400/10 rounded-xl text-blue-400 text-xs">
-                    <AlertCircle className="w-4 h-4" />
-                    Держи окно открытым — бот работает пока модалка открыта
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    Бот работает пока открыта вкладка браузера — можно закрыть это окно
                   </div>
                 )}
               </div>
             )}
+
           </div>
         </div>
       </div>
