@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Upload, Trash2, Key, Copy, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Upload, Trash2, Key, Copy, RefreshCw, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,8 +13,8 @@ interface WalletsModalProps { onClose: () => void; }
 export function WalletsModal({ onClose }: WalletsModalProps) {
   const { wallets, addWallet, deleteWallet, updateWallet } = useWallets();
 
-  const [tab, setTab]           = useState<'dev' | 'volume'>('dev');
-  const [mode, setMode]         = useState<null | 'import' | 'create'>(null); // null = show buttons
+  const [tab, setTab]               = useState<'dev' | 'volume'>('dev');
+  const [mode, setMode]             = useState<null | 'import' | 'create'>(null);
   const [importKey, setImportKey]   = useState('');
   const [walletName, setWalletName] = useState('');
   const [isWorking, setIsWorking]   = useState(false);
@@ -23,10 +23,31 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
   const [keyVisible, setKeyVisible] = useState(false);
   const [newKey, setNewKey]         = useState('');
   const [feedback, setFeedback]     = useState<{type:'ok'|'err';msg:string}|null>(null);
+  const [refreshingId, setRefreshingId] = useState<string|null>(null);
 
   const filteredWallets = wallets.filter(w => w.type === tab);
-  const flash = (type: 'ok'|'err', msg: string) => { setFeedback({ type, msg }); setTimeout(() => setFeedback(null), 3500); };
+
+  const flash = (type: 'ok'|'err', msg: string) => {
+    setFeedback({ type, msg });
+    setTimeout(() => setFeedback(null), 4000);
+  };
   const resetForm = () => { setMode(null); setImportKey(''); setWalletName(''); setNewKey(''); };
+
+  // Auto-refresh balances for all wallets on mount
+  useEffect(() => {
+    wallets.forEach(w => fetchBalance(w, false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchBalance = async (w: StoredWallet, showSpinner = true) => {
+    if (showSpinner) setRefreshingId(w.id);
+    try {
+      const r = await fetch(`/api/solana/balance?address=${w.address}`);
+      const d = await r.json();
+      updateWallet(w.id, { balance: d.balance ?? 0 });
+    } catch {}
+    finally { if (showSpinner) setRefreshingId(null); }
+  };
 
   const handleCreate = async () => {
     if (!walletName.trim()) return;
@@ -35,9 +56,12 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
       const res = await fetch('/api/solana/generate', { method: 'POST' });
       const d = await res.json();
       if (!d.address) throw new Error(d.error || 'Generate failed');
-      addWallet({ id: crypto.randomUUID(), name: walletName, address: d.address, balance: 0, type: tab, privateKeyEncrypted: d.privateKey });
+      const w: StoredWallet = { id: crypto.randomUUID(), name: walletName, address: d.address, balance: 0, type: tab, privateKeyEncrypted: d.privateKey };
+      addWallet(w);
       setWalletName('');
       setNewKey(d.privateKey);
+      // Auto-fetch balance (usually 0 for new wallet, but good practice)
+      fetchBalance(w, false);
     } catch (e: any) { flash('err', e.message); }
     finally { setIsWorking(false); }
   };
@@ -53,19 +77,14 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
       });
       const d = await res.json();
       if (!d.valid || !d.address) throw new Error(d.error || 'Invalid private key');
-      addWallet({ id: crypto.randomUUID(), name: walletName, address: d.address, balance: 0, type: tab, privateKeyEncrypted: key });
-      flash('ok', `Импорт успешен: ${d.address.slice(0,12)}…`);
+      const w: StoredWallet = { id: crypto.randomUUID(), name: walletName, address: d.address, balance: 0, type: tab, privateKeyEncrypted: key };
+      addWallet(w);
+      // Auto-fetch balance immediately after import
+      fetchBalance(w, false);
+      flash('ok', `Импорт успешен: ${d.address.slice(0,14)}…`);
       resetForm();
     } catch (e: any) { flash('err', e.message); }
     finally { setIsWorking(false); }
-  };
-
-  const refreshBalance = async (w: StoredWallet) => {
-    try {
-      const r = await fetch(`/api/solana/balance?address=${w.address}`);
-      const d = await r.json();
-      updateWallet(w.id, { balance: d.balance || 0 });
-    } catch {}
   };
 
   return (
@@ -112,11 +131,22 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
                   <div className="flex-1 min-w-0">
                     <div className="font-mono font-bold text-white text-sm">{w.name}</div>
                     <div className="text-xs text-white/40 font-mono truncate">{w.address}</div>
-                    <div className="text-xs text-white/50">{w.balance.toFixed(4)} SOL</div>
+                    <div className="text-xs text-white/50 font-mono">{w.balance.toFixed(4)} SOL</div>
                   </div>
-                  <button onClick={() => refreshBalance(w)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors"><RefreshCw className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => { setShowKeyFor(w.id); setKeyVisible(false); setPassword(''); }} className="p-1.5 rounded-lg hover:bg-green-400/10 text-white/40 hover:text-green-400 transition-colors"><Key className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => deleteWallet(w.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => fetchBalance(w)}
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors" title="Refresh balance">
+                    {refreshingId === w.id
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <RefreshCw className="w-3.5 h-3.5" />}
+                  </button>
+                  <button onClick={() => { setShowKeyFor(w.id); setKeyVisible(false); setPassword(''); }}
+                    className="p-1.5 rounded-lg hover:bg-green-400/10 text-white/40 hover:text-green-400 transition-colors">
+                    <Key className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => deleteWallet(w.id)}
+                    className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -139,17 +169,17 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
                   <Input value={importKey} onChange={e => setImportKey(e.target.value)}
                     placeholder="Paste base58 private key…" type="password"
                     className="bg-white/5 border-white/15 text-white h-10 font-mono text-sm" />
-                  <p className="text-xs text-white/40 mt-1">Ключ валидируется на сервере, не покидает браузер</p>
+                  <p className="text-xs text-white/40 mt-1">Ключ проверяется через сервер, баланс загрузится автоматически</p>
                 </div>
                 <div>
                   <Label className="text-sm text-white/70 mb-1 block">Wallet Name</Label>
                   <Input value={walletName} onChange={e => setWalletName(e.target.value)}
-                    placeholder="e.g. Dev Wallet 1" className="bg-white/5 border-white/15 text-white h-10" />
+                    placeholder="e.g. Mexc Wallet" className="bg-white/5 border-white/15 text-white h-10" />
                 </div>
                 <div className="flex gap-3">
                   <Button onClick={handleImport} disabled={!importKey || !walletName || isWorking}
                     className="flex-1 bg-green-400 hover:bg-green-500 text-black font-bold h-10">
-                    {isWorking ? 'Проверка…' : 'Import'}
+                    {isWorking ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Проверка…</> : 'Import'}
                   </Button>
                   <Button onClick={resetForm} variant="outline" className="flex-1 border-white/20 h-10">Cancel</Button>
                 </div>
@@ -167,7 +197,7 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
                 <div className="flex gap-3">
                   <Button onClick={handleCreate} disabled={!walletName || isWorking}
                     className="flex-1 bg-blue-400 hover:bg-blue-500 text-black font-bold h-10">
-                    {isWorking ? 'Генерация…' : '⚡ Generate'}
+                    {isWorking ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Генерация…</> : '⚡ Generate'}
                   </Button>
                   <Button onClick={resetForm} variant="outline" className="flex-1 border-white/20 h-10">Cancel</Button>
                 </div>
@@ -202,7 +232,7 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
               <h3 className="text-xl font-bold text-white mb-4">🔐 Private Key</h3>
               {!keyVisible ? (
                 <div className="space-y-3">
-                  <p className="text-white/60 text-sm">Введи любой пароль для подтверждения</p>
+                  <p className="text-white/60 text-sm">Введи пароль для подтверждения</p>
                   <Input type="password" value={password} onChange={e => setPassword(e.target.value)}
                     placeholder="Password" className="bg-white/5 border-white/20 text-white h-10" />
                   <div className="flex gap-3">
