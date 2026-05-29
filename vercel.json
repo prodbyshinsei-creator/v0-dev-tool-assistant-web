@@ -1,8 +1,9 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://dev-tool-assistant-api-production.up.railway.app"
+    "NEXT_PUBLIC_API_URL": "https://dev-tool-assistant-api-production.up.railway.app",
+    "SOLANA_RPC": "https://mainnet.helius-rpc.com/?api-key=a7988ce3-1c0c-4130-bad6-4b65b0e8cf73"
   }
 }
