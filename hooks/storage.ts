@@ -12,29 +12,43 @@ export interface StoredWallet {
   privateKeyEncrypted: string;
 }
 
+const WALLETS_KEY = 'vamp_wallets';
+
+function readWallets(): StoredWallet[] {
+  try { return JSON.parse(localStorage.getItem(WALLETS_KEY) || '[]'); } catch { return []; }
+}
+
 export function useWallets() {
   const [wallets, setWallets] = useState<StoredWallet[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('vamp_wallets');
-      if (stored) setWallets(JSON.parse(stored));
-    } catch {}
+    setWallets(readWallets());
     setIsLoaded(true);
+
+    // Listen for changes from other modal instances
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === WALLETS_KEY) setWallets(readWallets());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const save = (w: StoredWallet[]) => {
-    setWallets(w);
-    localStorage.setItem('vamp_wallets', JSON.stringify(w));
+  const save = (list: StoredWallet[]) => {
+    setWallets(list);
+    localStorage.setItem(WALLETS_KEY, JSON.stringify(list));
+    // Notify other hook instances in the same tab
+    window.dispatchEvent(new StorageEvent('storage', { key: WALLETS_KEY }));
   };
 
   return {
     wallets,
     isLoaded,
-    addWallet:    (w: StoredWallet)                      => save([...wallets, w]),
-    deleteWallet: (id: string)                           => save(wallets.filter(w => w.id !== id)),
-    updateWallet: (id: string, u: Partial<StoredWallet>) => save(wallets.map(w => w.id === id ? { ...w, ...u } : w)),
+    // Always re-read from localStorage to avoid stale-state overwrites
+    addWallet: (w: StoredWallet) => save([...readWallets(), w]),
+    deleteWallet: (id: string) => save(readWallets().filter(w => w.id !== id)),
+    updateWallet: (id: string, u: Partial<StoredWallet>) =>
+      save(readWallets().map(w => w.id === id ? { ...w, ...u } : w)),
   };
 }
 
@@ -44,9 +58,15 @@ export interface VolumeSession {
   ca: string;
   preset: 'organic' | 'fast' | 'turbo';
   status: 'running' | 'paused' | 'stopping';
-  wallets: string[]; // wallet ids
+  wallets: string[];
   createdAt: number;
-  buySolAmount: number;
+  buySolAmount: number;   // kept for compat; actual range in buySolRange
+  buySolRange: string;    // e.g. "0.1-0.5" or "0.05"
+}
+
+const SESSIONS_KEY = 'vamp_volume_sessions';
+function readSessions(): VolumeSession[] {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch { return []; }
 }
 
 export function useVolumeSessions() {
@@ -54,24 +74,22 @@ export function useVolumeSessions() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('vamp_volume_sessions');
-      if (stored) setSessions(JSON.parse(stored));
-    } catch {}
+    setSessions(readSessions());
     setIsLoaded(true);
   }, []);
 
   const save = (s: VolumeSession[]) => {
     setSessions(s);
-    localStorage.setItem('vamp_volume_sessions', JSON.stringify(s));
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(s));
   };
 
   return {
     sessions,
     isLoaded,
-    addSession:    (s: VolumeSession)                      => save([...sessions, s]),
-    deleteSession: (id: string)                            => save(sessions.filter(s => s.id !== id)),
-    updateSession: (id: string, u: Partial<VolumeSession>) => save(sessions.map(s => s.id === id ? { ...s, ...u } : s)),
+    addSession:    (s: VolumeSession)                      => save([...readSessions(), s]),
+    deleteSession: (id: string)                            => save(readSessions().filter(s => s.id !== id)),
+    updateSession: (id: string, u: Partial<VolumeSession>) =>
+      save(readSessions().map(s => s.id === id ? { ...s, ...u } : s)),
   };
 }
 
@@ -90,28 +108,31 @@ export interface PortfolioToken {
   launchedAt: number;
 }
 
+const PORTFOLIO_KEY = 'vamp_portfolio';
+function readPortfolio(): PortfolioToken[] {
+  try { return JSON.parse(localStorage.getItem(PORTFOLIO_KEY) || '[]'); } catch { return []; }
+}
+
 export function usePortfolio() {
   const [tokens, setTokens] = useState<PortfolioToken[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('vamp_portfolio');
-      if (stored) setTokens(JSON.parse(stored));
-    } catch {}
+    setTokens(readPortfolio());
     setIsLoaded(true);
   }, []);
 
   const save = (t: PortfolioToken[]) => {
     setTokens(t);
-    localStorage.setItem('vamp_portfolio', JSON.stringify(t));
+    localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(t));
   };
 
   return {
     tokens,
     isLoaded,
-    addToken:    (t: PortfolioToken)                      => save([...tokens, t]),
-    updateToken: (id: string, u: Partial<PortfolioToken>) => save(tokens.map(t => t.id === id ? { ...t, ...u } : t)),
-    deleteToken: (id: string)                             => save(tokens.filter(t => t.id !== id)),
+    addToken:    (t: PortfolioToken)                      => save([...readPortfolio(), t]),
+    updateToken: (id: string, u: Partial<PortfolioToken>) =>
+      save(readPortfolio().map(t => t.id === id ? { ...t, ...u } : t)),
+    deleteToken: (id: string)                             => save(readPortfolio().filter(t => t.id !== id)),
   };
 }
