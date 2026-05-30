@@ -10,17 +10,22 @@ export async function GET(req: NextRequest) {
   let name='',symbol='',description='',image='',website='',twitter='',telegram='';
   let price=0,marketCap=0,liquidity=0,volume24h=0,holders=0;
 
-  // All 3 in parallel
-  const [pumpR, dexR, gmgnR] = await Promise.allSettled([
-    fetch(`https://frontend-api.pump.fun/coins/${ca}`, { headers: HDR, signal: AbortSignal.timeout(4000) })
+  // ALL 4 sources in parallel — Helius included from the start, not as sequential fallback
+  const [pumpR, dexR, gmgnR, heliusR] = await Promise.allSettled([
+    fetch(`https://frontend-api.pump.fun/coins/${ca}`, { headers: HDR, signal: AbortSignal.timeout(3000) })
       .then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`https://api.dexscreener.com/latest/dex/tokens/${ca}`, { headers: HDR, signal: AbortSignal.timeout(5000) })
+    fetch(`https://api.dexscreener.com/latest/dex/tokens/${ca}`, { headers: HDR, signal: AbortSignal.timeout(4000) })
       .then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${ca}`, { headers: HDR, signal: AbortSignal.timeout(5000) })
+    fetch(`https://gmgn.ai/defi/quotation/v1/tokens/sol/${ca}`, { headers: HDR, signal: AbortSignal.timeout(4000) })
       .then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch(HELIUS, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'getAsset', params:{id:ca} }),
+      signal: AbortSignal.timeout(4000),
+    }).then(r => r.ok ? r.json() : null).catch(() => null),
   ]);
 
-  // pump.fun — best for new tokens
+  // 1. pump.fun — fastest, best for new tokens
   if (pumpR.status === 'fulfilled' && pumpR.value) {
     const p = pumpR.value;
     name        = p.name        || '';
@@ -35,7 +40,7 @@ export async function GET(req: NextRequest) {
     if (telegram && !telegram.startsWith('http')) telegram = `https://t.me/${telegram.replace('@','')}`;
   }
 
-  // DexScreener — price, liquidity
+  // 2. DexScreener — price, liquidity
   if (dexR.status === 'fulfilled' && dexR.value) {
     const pair = dexR.value.pairs?.[0];
     if (pair) {
@@ -56,7 +61,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // GMGN — description, holders
+  // 3. GMGN — description, holders
   if (gmgnR.status === 'fulfilled' && gmgnR.value) {
     const tk = gmgnR.value?.data?.token || {};
     if (!name)        name        = tk.name        || '';
@@ -71,43 +76,37 @@ export async function GET(req: NextRequest) {
     holders = tk.holder_count || 0;
   }
 
-  // Helius + IPFS fallback — runs when description is missing (not just when name/image missing)
-  // This is key: pump.fun may have name+image but IPFS JSON has the real description
-  if (!name || !image || !description) {
-    try {
-      const ar = await fetch(HELIUS, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'getAsset', params:{id:ca} }),
-        signal: AbortSignal.timeout(7000),
-      });
-      if (ar.ok) {
-        const a = await ar.json(); const content = a.result?.content||{};
-        const meta = content.metadata||{}; const files = content.files||[];
-        if (!name)   name   = meta.name   || '';
-        if (!symbol) symbol = meta.symbol || '';
-        if (!image && files[0]) image = files[0].uri || files[0].cdn_uri || '';
-        const jsonUri = content.json_uri || '';
-        // Fetch IPFS JSON if we're missing description or socials
-        if (jsonUri && (!description || !twitter || !telegram)) {
-          const gateways = [jsonUri];
-          const hash = jsonUri.split('ipfs/').pop();
-          if (hash) gateways.unshift(`https://cloudflare-ipfs.com/ipfs/${hash}`);
-          for (const gw of gateways) {
-            try {
-              const jr = await fetch(gw, { headers: HDR, signal: AbortSignal.timeout(5000) });
-              if (!jr.ok) continue;
-              const j = await jr.json(); const ext = j.extensions||{};
-              if (!description) description = j.description || '';
-              if (!image)       image       = j.image || '';
-              if (!twitter)     twitter     = ext.twitter || j.twitter || '';
-              if (!telegram)    telegram    = ext.telegram || j.telegram || '';
-              if (!website)     website     = ext.website || j.website || j.external_url || '';
-              break;
-            } catch {}
-          }
+  // 4. Helius getAsset (ran in parallel above) — fills gaps, then fetches IPFS JSON for description
+  if (heliusR.status === 'fulfilled' && heliusR.value) {
+    const content = heliusR.value?.result?.content || {};
+    const meta = content.metadata || {};
+    const files = content.files || [];
+    const jsonUri = content.json_uri || '';
+    if (!name)   name   = meta.name   || '';
+    if (!symbol) symbol = meta.symbol || '';
+    if (!image && files[0]) image = files[0].uri || files[0].cdn_uri || '';
+
+    // Fetch IPFS JSON only if we still need description
+    if (jsonUri && !description) {
+      try {
+        const gateways = [jsonUri];
+        const hash = jsonUri.split('ipfs/').pop();
+        if (hash) gateways.unshift(`https://cloudflare-ipfs.com/ipfs/${hash}`);
+        for (const gw of gateways) {
+          try {
+            const jr = await fetch(gw, { headers: HDR, signal: AbortSignal.timeout(3000) });
+            if (!jr.ok) continue;
+            const j = await jr.json(); const ext = j.extensions || {};
+            if (!description) description = j.description || '';
+            if (!image)       image       = j.image || '';
+            if (!twitter)     twitter     = ext.twitter || j.twitter || '';
+            if (!telegram)    telegram    = ext.telegram || j.telegram || '';
+            if (!website)     website     = ext.website || j.website || j.external_url || '';
+            break;
+          } catch {}
         }
-      }
-    } catch {}
+      } catch {}
+    }
   }
 
   if (!name) return NextResponse.json({ error:'Token not found' },{status:404});
