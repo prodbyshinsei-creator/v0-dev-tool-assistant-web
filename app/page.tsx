@@ -20,7 +20,6 @@ const THEMES = [
   { id:'solana'  as Theme, label:'Solana',  dot:'bg-purple-500'},
 ];
 
-/* ── Icons ── */
 function BloodDrop({ className='', style={} }: { className?:string; style?:React.CSSProperties }) {
   return (
     <svg viewBox="0 0 48 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
@@ -98,7 +97,6 @@ function PortfolioAnim({ size='md' }: { size?:'sm'|'md'|'lg' }) {
   );
 }
 
-/* ── Footer ── */
 function Footer({ theme, setTheme }: { theme:Theme; setTheme:(t:Theme)=>void }) {
   const [sol, setSol] = useState<number|null>(null);
   const [open, setOpen] = useState(false);
@@ -114,9 +112,9 @@ function Footer({ theme, setTheme }: { theme:Theme; setTheme:(t:Theme)=>void }) 
   },[]);
   const cur = THEMES.find(t=>t.id===theme)!;
   return (
-    <div className="flex-shrink-0 border-t border-white/8 bg-black/90 backdrop-blur-xl px-4 py-2 flex items-center justify-between gap-4 text-xs z-10">
+    <div className="flex-shrink-0 border-t border-white/8 bg-black/90 backdrop-blur-xl px-4 py-1.5 flex items-center justify-between gap-4 text-xs z-10">
       <div className="flex items-center gap-2">
-        <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-purple-400 to-green-400 flex-shrink-0"/>
+        <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-green-400 flex-shrink-0"/>
         <span className="text-white/40">SOL</span>
         <span className="text-white font-bold font-mono">{sol!==null?`$${sol.toFixed(2)}`:'—'}</span>
       </div>
@@ -127,8 +125,8 @@ function Footer({ theme, setTheme }: { theme:Theme; setTheme:(t:Theme)=>void }) 
       </div>
       <div className="relative" ref={ref}>
         <button onClick={()=>setOpen(v=>!v)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/10 hover:border-white/25 bg-white/3 transition-all">
-          <div className={cn('w-3 h-3 rounded-full flex-shrink-0', cur.dot)}/>
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-white/10 hover:border-white/25 bg-white/3 transition-all">
+          <div className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', cur.dot)}/>
           <span className="text-white/40 hidden sm:block text-xs">{cur.label}</span>
           <Palette className="w-3 h-3 text-white/25"/>
         </button>
@@ -152,7 +150,6 @@ function Footer({ theme, setTheme }: { theme:Theme; setTheme:(t:Theme)=>void }) 
   );
 }
 
-/* ── Main ── */
 export default function Home() {
   const [user, setUser]               = useState<AuthUser|null>(null);
   const [authMode, setAuthMode]       = useState<'login'|'register'|null>(null);
@@ -192,7 +189,7 @@ export default function Home() {
 
   const handleChangePwd = async ()=>{
     if(!user||!oldPwd||!newPwd) return;
-    if(newPwd.length<8){setPwdErr('Min 8 characters');return;}
+    if(newPwd.length<8){setPwdErr('Min 8 chars');return;}
     setPwdLoading(true); setPwdErr(''); setPwdMsg('');
     const r=await changePassword(user.id,oldPwd,newPwd);
     setPwdLoading(false);
@@ -218,97 +215,94 @@ export default function Home() {
     <div className="h-[100dvh] flex flex-col overflow-hidden">
       <InteractiveShaderBackground theme={theme} />
 
-      {/* Header */}
-      <div className={cn(
-        'relative z-[200] border-b border-white/8 bg-black/90 backdrop-blur-xl flex-shrink-0',
-        modalOpen ? 'hidden md:flex' : 'flex'
-      )}>
-        <div className="w-full px-4 md:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <BloodDrop className="w-6 h-7 flex-shrink-0" style={{color:'#ef4444'}}/>
-            <span className="text-base md:text-lg font-mono font-black text-white tracking-widest">VEXOR</span>
-          </div>
+      {/* Header — hidden on ALL screens when any modal is open */}
+      {!modalOpen && (
+        <div className="relative z-[200] border-b border-white/8 bg-black/90 backdrop-blur-xl flex-shrink-0">
+          <div className="w-full px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BloodDrop className="w-5 h-6 flex-shrink-0" style={{color:'#ef4444'}}/>
+              <span className="text-sm font-mono font-black text-white tracking-widest">VEXOR</span>
+            </div>
 
-          <div className="relative" ref={cabinetRef}>
-            <button onClick={()=>setCabinetOpen(v=>!v)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/15 hover:border-white/30 bg-white/5 transition-all">
-              <div className={cn('w-7 h-7 rounded-full border-2 flex items-center justify-center',
-                user.isAdmin
-                  ? 'bg-yellow-400/20 border-yellow-400/60 shadow-[0_0_10px_rgba(250,204,21,0.4)]'
-                  : 'bg-green-400/20 border-green-400/60 shadow-[0_0_10px_rgba(74,222,128,0.3)]')}>
-                {user.isAdmin?<Shield className="w-3.5 h-3.5 text-yellow-400"/>:<User className="w-3.5 h-3.5 text-green-400"/>}
-              </div>
-              <ChevronDown className={cn('w-4 h-4 text-white/40 transition-transform',cabinetOpen&&'rotate-180')}/>
-            </button>
+            <div className="relative" ref={cabinetRef}>
+              <button onClick={()=>setCabinetOpen(v=>!v)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/15 hover:border-white/30 bg-white/5 transition-all">
+                <div className={cn('w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                  user.isAdmin
+                    ? 'bg-yellow-400/20 border-yellow-400/60 shadow-[0_0_8px_rgba(250,204,21,0.35)]'
+                    : 'bg-green-400/20 border-green-400/60 shadow-[0_0_8px_rgba(74,222,128,0.25)]')}>
+                  {user.isAdmin?<Shield className="w-3 h-3 text-yellow-400"/>:<User className="w-3 h-3 text-green-400"/>}
+                </div>
+                <ChevronDown className={cn('w-3.5 h-3.5 text-white/40 transition-transform',cabinetOpen&&'rotate-180')}/>
+              </button>
 
-            {cabinetOpen&&(
-              <>
-                <div className="fixed inset-0 z-[290]" onClick={()=>setCabinetOpen(false)}/>
-                <div className="absolute right-0 top-full mt-2 w-60 bg-black border border-white/15 rounded-2xl shadow-2xl overflow-hidden z-[300]">
-                  <div className="p-4 border-b border-white/8">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className={cn('w-2 h-2 rounded-full',user.isAdmin?'bg-yellow-400':'bg-green-400')}/>
-                      <span className="text-xs text-white/40">{user.isAdmin?'Admin':'User'}</span>
-                    </div>
-                    <div className="text-white font-bold text-sm truncate">
-                      {user.authMethod==='wallet'&&user.walletAddress
-                        ?user.walletAddress.slice(0,10)+'…'+user.walletAddress.slice(-6)
-                        :user.email}
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-1">
-                    {user.isAdmin&&(
-                      <button onMouseDown={()=>{setAdminOpen(true);setCabinetOpen(false);}}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-yellow-400/10 text-yellow-400/70 hover:text-yellow-400 text-sm font-bold transition-all">
-                        <Shield className="w-4 h-4"/> Admin Panel
-                      </button>
-                    )}
-                    {user.authMethod!=='wallet'&&(
-                      <button onMouseDown={()=>setChangingPwd(true)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/8 text-white/60 hover:text-white text-sm transition-all">
-                        <Lock className="w-4 h-4"/> Change Password
-                      </button>
-                    )}
-                    <button onMouseDown={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400/60 hover:text-red-400 text-sm transition-all">
-                      <LogOut className="w-4 h-4"/> Logout
-                    </button>
-                  </div>
-                  {changingPwd&&(
-                    <div className="p-4 border-t border-white/8 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-white">Change Password</span>
-                        <button onClick={()=>setChangingPwd(false)} className="text-white/30 hover:text-white"><X className="w-4 h-4"/></button>
+              {cabinetOpen&&(
+                <>
+                  <div className="fixed inset-0 z-[290]" onClick={()=>setCabinetOpen(false)}/>
+                  <div className="absolute right-0 top-full mt-2 w-60 bg-black border border-white/15 rounded-2xl shadow-2xl overflow-hidden z-[300]">
+                    <div className="p-4 border-b border-white/8">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={cn('w-2 h-2 rounded-full',user.isAdmin?'bg-yellow-400':'bg-green-400')}/>
+                        <span className="text-xs text-white/40">{user.isAdmin?'Admin':'User'}</span>
                       </div>
-                      {pwdMsg&&<div className="text-xs text-green-400 flex items-center gap-1"><CheckCircle className="w-3 h-3"/>{pwdMsg}</div>}
-                      {pwdErr&&<div className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{pwdErr}</div>}
-                      <div className="relative">
-                        <input type={showPwd?'text':'password'} value={oldPwd} onChange={e=>setOldPwd(e.target.value)}
-                          placeholder="Current password" className="w-full bg-white/5 border border-white/15 text-white rounded-xl px-3 pr-9 h-9 text-sm focus:outline-none"/>
-                        <button onClick={()=>setShowPwd(v=>!v)} className="absolute right-2.5 top-2 text-white/30">
-                          {showPwd?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}
+                      <div className="text-white font-bold text-sm truncate">
+                        {user.authMethod==='wallet'&&user.walletAddress
+                          ?user.walletAddress.slice(0,10)+'…'+user.walletAddress.slice(-6)
+                          :user.email}
+                      </div>
+                    </div>
+                    <div className="p-3 space-y-1">
+                      {user.isAdmin&&(
+                        <button onMouseDown={()=>{setAdminOpen(true);setCabinetOpen(false);}}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-yellow-400/10 text-yellow-400/70 hover:text-yellow-400 text-sm font-bold transition-all">
+                          <Shield className="w-4 h-4"/> Admin Panel
+                        </button>
+                      )}
+                      {user.authMethod!=='wallet'&&(
+                        <button onMouseDown={()=>setChangingPwd(true)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/8 text-white/60 hover:text-white text-sm transition-all">
+                          <Lock className="w-4 h-4"/> Change Password
+                        </button>
+                      )}
+                      <button onMouseDown={handleLogout}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-400/60 hover:text-red-400 text-sm transition-all">
+                        <LogOut className="w-4 h-4"/> Logout
+                      </button>
+                    </div>
+                    {changingPwd&&(
+                      <div className="p-4 border-t border-white/8 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-white">Change Password</span>
+                          <button onClick={()=>setChangingPwd(false)} className="text-white/30 hover:text-white"><X className="w-4 h-4"/></button>
+                        </div>
+                        {pwdMsg&&<div className="text-xs text-green-400 flex items-center gap-1"><CheckCircle className="w-3 h-3"/>{pwdMsg}</div>}
+                        {pwdErr&&<div className="text-xs text-red-400 flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{pwdErr}</div>}
+                        <div className="relative">
+                          <input type={showPwd?'text':'password'} value={oldPwd} onChange={e=>setOldPwd(e.target.value)}
+                            placeholder="Current password" className="w-full bg-white/5 border border-white/15 text-white rounded-xl px-3 pr-9 h-9 text-sm focus:outline-none"/>
+                          <button onClick={()=>setShowPwd(v=>!v)} className="absolute right-2.5 top-2 text-white/30">
+                            {showPwd?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}
+                          </button>
+                        </div>
+                        <input type={showPwd?'text':'password'} value={newPwd} onChange={e=>setNewPwd(e.target.value)}
+                          placeholder="New password (8+)" className="w-full bg-white/5 border border-white/15 text-white rounded-xl px-3 h-9 text-sm focus:outline-none"/>
+                        <button onClick={handleChangePwd} disabled={!oldPwd||!newPwd||pwdLoading}
+                          className="w-full h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm disabled:opacity-50 transition-all">
+                          {pwdLoading?<Loader2 className="w-4 h-4 animate-spin mx-auto"/>:'Update'}
                         </button>
                       </div>
-                      <input type={showPwd?'text':'password'} value={newPwd} onChange={e=>setNewPwd(e.target.value)}
-                        placeholder="New password (8+)" className="w-full bg-white/5 border border-white/15 text-white rounded-xl px-3 h-9 text-sm focus:outline-none"/>
-                      <button onClick={handleChangePwd} disabled={!oldPwd||!newPwd||pwdLoading}
-                        className="w-full h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm disabled:opacity-50 transition-all">
-                        {pwdLoading?<Loader2 className="w-4 h-4 animate-spin mx-auto"/>:'Update'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ── DESKTOP layout (md+): CSS Grid filling all remaining height ── */}
+      {/* DESKTOP grid */}
       <div className="relative z-10 flex-1 overflow-hidden hidden md:grid md:p-4 md:gap-4"
         style={{ gridTemplateColumns: '1.2fr 1fr', gridTemplateRows: '1fr 0.65fr' }}>
-
-        {/* VAMP — left column, full height */}
         <button onClick={()=>setActiveModal('vamp')}
           className="group rounded-3xl bg-black/50 border border-white/10 hover:border-red-500/40 hover:bg-red-500/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center row-span-2">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-red-500/8 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"/>
@@ -316,8 +310,6 @@ export default function Home() {
           <h2 className="text-6xl font-black text-white mb-2 group-hover:text-red-50 transition-colors">VAMP</h2>
           <p className="text-white/40 text-sm group-hover:text-white/60 transition-colors">Launch Tokens</p>
         </button>
-
-        {/* VOLUME + WALLETS — top right, side by side */}
         <div className="flex gap-4">
           <button onClick={()=>setActiveModal('volume')}
             className="group flex-1 rounded-3xl bg-black/50 border border-white/10 hover:border-blue-400/40 hover:bg-blue-400/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center">
@@ -334,8 +326,6 @@ export default function Home() {
             <p className="text-white/40 text-xs group-hover:text-white/60 transition-colors">Manage Keys</p>
           </button>
         </div>
-
-        {/* PORTFOLIO — bottom right */}
         <button onClick={()=>setActiveModal('portfolio')}
           className="group rounded-3xl bg-black/50 border border-white/10 hover:border-white/25 hover:bg-white/3 transition-all duration-300 overflow-hidden relative flex items-center justify-center gap-8 px-8">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
@@ -347,7 +337,7 @@ export default function Home() {
         </button>
       </div>
 
-      {/* ── MOBILE layout: vertical flex stack ── */}
+      {/* MOBILE stack */}
       <div className="relative z-10 flex-1 overflow-y-auto flex flex-col gap-3 p-3 md:hidden">
         <button onClick={()=>setActiveModal('vamp')}
           className="group rounded-3xl bg-black/50 border border-white/10 hover:border-red-500/40 transition-all overflow-hidden relative flex flex-col items-center justify-center min-h-[180px]">
@@ -381,7 +371,6 @@ export default function Home() {
 
       <Footer theme={theme} setTheme={setTheme}/>
 
-      {/* Modals */}
       {activeModal==='vamp'      && <VampModal      onClose={()=>setActiveModal(null)} onOpenPortfolio={()=>setActiveModal('portfolio')}/>}
       {activeModal==='volume'    && <VolumeModal    onClose={()=>setActiveModal(null)} initialCA={volumeInitCA} onSessionStart={()=>setVolumeInitCA('')}/>}
       {activeModal==='wallets'   && <WalletsModal   onClose={()=>setActiveModal(null)}/>}
