@@ -1,6 +1,14 @@
 'use client';
 
-export const ADMIN_EMAILS = ['prod.by.shinsei@gmail.com'];
+// Admin emails AND admin wallet addresses
+export const ADMIN_EMAILS   = ['prod.by.shinsei@gmail.com'];
+export const ADMIN_WALLETS  = ['DjLqiGSJdhPP8fYwLM63jnRUdYFPETnr3Uh1NMUJjowU']; // Phantom wallet
+
+function isAdminCheck(email: string, walletAddress?: string): boolean {
+  if (ADMIN_EMAILS.includes((email||'').toLowerCase())) return true;
+  if (walletAddress && ADMIN_WALLETS.includes(walletAddress)) return true;
+  return false;
+}
 
 export interface AuthUser {
   id: string;
@@ -15,15 +23,9 @@ const AUTH_KEY  = 'vamp_auth';
 const USERS_KEY = 'vamp_users';
 
 interface StoredUser {
-  id: string;
-  email: string;
-  passwordHash: string;
-  createdAt: number;
-  walletAddress?: string;
-  banned?: boolean;
-  bannedAt?: number;
-  bannedReason?: string;
-  lastLogin?: number;
+  id: string; email: string; passwordHash: string; createdAt: number;
+  walletAddress?: string; banned?: boolean; bannedAt?: number;
+  bannedReason?: string; lastLogin?: number;
 }
 
 export function getAuthUser(): AuthUser | null {
@@ -32,7 +34,7 @@ export function getAuthUser(): AuthUser | null {
     const raw = localStorage.getItem(AUTH_KEY);
     if (!raw) return null;
     const u = JSON.parse(raw) as AuthUser;
-    return { ...u, isAdmin: ADMIN_EMAILS.includes((u.email||'').toLowerCase()) };
+    return { ...u, isAdmin: isAdminCheck(u.email, u.walletAddress) };
   } catch { return null; }
 }
 
@@ -40,13 +42,10 @@ export function setAuthUser(user: AuthUser) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
 }
 
-export function clearAuthUser() {
-  localStorage.removeItem(AUTH_KEY);
-}
+export function clearAuthUser() { localStorage.removeItem(AUTH_KEY); }
 
-export async function hashPassword(password: string): Promise<string> {
-  const enc = new TextEncoder().encode(password);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
+export async function hashPassword(p: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
@@ -57,12 +56,9 @@ function getStoredUsers(): StoredUser[] {
 export function getAllUsers() {
   return getStoredUsers().map(u => ({
     id: u.id, email: u.email, createdAt: u.createdAt,
-    isAdmin: ADMIN_EMAILS.includes((u.email||'').toLowerCase()),
-    walletAddress: u.walletAddress,
-    banned: u.banned || false,
-    bannedAt: u.bannedAt,
-    bannedReason: u.bannedReason,
-    lastLogin: u.lastLogin,
+    isAdmin: isAdminCheck(u.email, u.walletAddress),
+    walletAddress: u.walletAddress, banned: u.banned || false,
+    bannedAt: u.bannedAt, bannedReason: u.bannedReason, lastLogin: u.lastLogin,
   }));
 }
 
@@ -71,15 +67,13 @@ export function deleteUserById(id: string) {
 }
 
 export function banUser(id: string, reason = '') {
-  const users = getStoredUsers();
-  const idx   = users.findIndex(u => u.id === id);
+  const users = getStoredUsers(); const idx = users.findIndex(u => u.id === id);
   if (idx !== -1) { users[idx].banned = true; users[idx].bannedAt = Date.now(); users[idx].bannedReason = reason; }
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
 export function unbanUser(id: string) {
-  const users = getStoredUsers();
-  const idx   = users.findIndex(u => u.id === id);
+  const users = getStoredUsers(); const idx = users.findIndex(u => u.id === id);
   if (idx !== -1) { delete users[idx].banned; delete users[idx].bannedAt; delete users[idx].bannedReason; }
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
@@ -88,67 +82,54 @@ export function loginOrRegisterWithWallet(walletAddress: string, walletName: str
   const users = getStoredUsers();
   let user = users.find(u => u.walletAddress === walletAddress);
   if (!user) {
-    user = { id: crypto.randomUUID(), email: `${walletAddress.slice(0,8)}…@wallet`, passwordHash: '', createdAt: Date.now(), walletAddress };
+    user = { id: crypto.randomUUID(), email: `${walletAddress.slice(0,8)}…@wallet`,
+      passwordHash: '', createdAt: Date.now(), walletAddress };
     localStorage.setItem(USERS_KEY, JSON.stringify([...users, user]));
   }
   if (user.banned) return { user: null, banned: true, reason: user.bannedReason };
   const authUser: AuthUser = { id: user.id, email: user.email, createdAt: user.createdAt,
-    authMethod: 'wallet', walletAddress, isAdmin: ADMIN_EMAILS.includes((user.email||'').toLowerCase()) };
+    authMethod: 'wallet', walletAddress, isAdmin: isAdminCheck(user.email, walletAddress) };
   setAuthUser(authUser);
-  // Update lastLogin
-  const allUsers = getStoredUsers();
-  const idx = allUsers.findIndex(u => u.id === user!.id);
-  if (idx !== -1) { allUsers[idx].lastLogin = Date.now(); localStorage.setItem(USERS_KEY, JSON.stringify(allUsers)); }
+  const all = getStoredUsers(); const idx = all.findIndex(u => u.id === user!.id);
+  if (idx !== -1) { all[idx].lastLogin = Date.now(); localStorage.setItem(USERS_KEY, JSON.stringify(all)); }
   return { user: authUser };
 }
 
 export async function registerUser(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
   const users = getStoredUsers();
-  const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (existing) return { ok: false, error: existing.banned ? 'This email is banned' : 'Email already registered' };
+  const ex = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (ex) return { ok: false, error: ex.banned ? 'Email is banned' : 'Email already registered' };
   const hash = await hashPassword(password);
-  const user: StoredUser = { id: crypto.randomUUID(), email, passwordHash: hash, createdAt: Date.now(), lastLogin: Date.now() };
-  localStorage.setItem(USERS_KEY, JSON.stringify([...users, user]));
-  setAuthUser({ id: user.id, email: user.email, createdAt: user.createdAt, authMethod: 'email',
-    isAdmin: ADMIN_EMAILS.includes(email.toLowerCase()) });
+  const u: StoredUser = { id: crypto.randomUUID(), email, passwordHash: hash, createdAt: Date.now(), lastLogin: Date.now() };
+  localStorage.setItem(USERS_KEY, JSON.stringify([...users, u]));
+  setAuthUser({ id: u.id, email: u.email, createdAt: u.createdAt, authMethod: 'email', isAdmin: isAdminCheck(email) });
   return { ok: true };
 }
 
 export async function loginUser(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
   const users = getStoredUsers();
-  const user  = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (!user) return { ok: false, error: 'Email not found' };
-  if (user.banned) return { ok: false, error: `Account banned${user.bannedReason ? ': ' + user.bannedReason : ''}` };
-  const hash = await hashPassword(password);
-  if (hash !== user.passwordHash) return { ok: false, error: 'Wrong password' };
-  // Update lastLogin
-  const idx = users.findIndex(u => u.id === user.id);
-  if (idx !== -1) { users[idx].lastLogin = Date.now(); localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
-  setAuthUser({ id: user.id, email: user.email, createdAt: user.createdAt, authMethod: 'email',
-    isAdmin: ADMIN_EMAILS.includes(email.toLowerCase()) });
+  const u = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (!u) return { ok: false, error: 'Email not found' };
+  if (u.banned) return { ok: false, error: `Banned${u.bannedReason ? ': ' + u.bannedReason : ''}` };
+  if (await hashPassword(password) !== u.passwordHash) return { ok: false, error: 'Wrong password' };
+  const all = getStoredUsers(); const idx = all.findIndex(x => x.id === u.id);
+  if (idx !== -1) { all[idx].lastLogin = Date.now(); localStorage.setItem(USERS_KEY, JSON.stringify(all)); }
+  setAuthUser({ id: u.id, email: u.email, createdAt: u.createdAt, authMethod: 'email', isAdmin: isAdminCheck(email) });
   return { ok: true };
 }
 
-export async function changePassword(userId: string, oldPassword: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
-  const users = getStoredUsers();
-  const idx   = users.findIndex(u => u.id === userId);
-  if (idx === -1) return { ok: false, error: 'User not found' };
-  const oldHash = await hashPassword(oldPassword);
-  if (oldHash !== users[idx].passwordHash) return { ok: false, error: 'Current password is wrong' };
-  users[idx] = { ...users[idx], passwordHash: await hashPassword(newPassword) };
+export async function changePassword(userId: string, oldPwd: string, newPwd: string): Promise<{ ok: boolean; error?: string }> {
+  const users = getStoredUsers(); const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) return { ok: false, error: 'Not found' };
+  if (await hashPassword(oldPwd) !== users[idx].passwordHash) return { ok: false, error: 'Current password wrong' };
+  users[idx].passwordHash = await hashPassword(newPwd);
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   return { ok: true };
 }
 
-// Simple page view counter
 export function trackPageView() {
-  try {
-    const key = 'vamp_page_views';
-    const views = parseInt(localStorage.getItem(key) || '0') + 1;
-    localStorage.setItem(key, String(views));
-  } catch {}
+  try { localStorage.setItem('vamp_page_views', String((parseInt(localStorage.getItem('vamp_page_views')||'0')+1))); } catch {}
 }
-
 export function getPageViews(): number {
-  try { return parseInt(localStorage.getItem('vamp_page_views') || '0'); } catch { return 0; }
+  try { return parseInt(localStorage.getItem('vamp_page_views')||'0'); } catch { return 0; }
 }
