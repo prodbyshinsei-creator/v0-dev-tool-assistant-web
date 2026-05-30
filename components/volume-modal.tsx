@@ -22,60 +22,77 @@ const PRESETS = [
   { key: 'turbo',   icon: '🔥', label: 'TURBO',   delay: '2–5s',   txh: '20–30' },
 ] as const;
 
+// Animated candlestick icon for header
+const VOL_BARS = [
+  {x:2, h:22,y:14,g:true, d:'0s'  },
+  {x:12,h:16,y:18,g:false,d:'.25s'},
+  {x:22,h:26,y:10,g:true, d:'.5s' },
+  {x:32,h:14,y:20,g:false,d:'.1s' },
+  {x:42,h:20,y:12,g:true, d:'.35s'},
+  {x:52,h:18,y:16,g:false,d:'.6s' },
+];
+
+function VolumeHeaderIcon() {
+  return (
+    <svg viewBox="0 0 64 48" fill="none" className="w-9 h-8">
+      <style>{`
+        @keyframes vcg{0%,100%{transform:scaleY(1);opacity:.9}50%{transform:scaleY(.5);opacity:.55}}
+        .vcb{transform-box:fill-box;transform-origin:center;}
+      `}</style>
+      {VOL_BARS.map((b, i) => (
+        <g key={i}>
+          <line x1={b.x+4} y1={b.y-4} x2={b.x+4} y2={b.y+b.h+4}
+            stroke={b.g ? '#22c55e' : '#ef4444'} strokeWidth="1.5" opacity="0.45"/>
+          <rect className="vcb" x={b.x} y={b.y} width="8" height={b.h} rx="1.5"
+            fill={b.g ? '#22c55e' : '#ef4444'} opacity="0.9"
+            style={{ animation: `vcg 1.8s ease-in-out ${b.d} infinite` }}/>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 export function VolumeModal({ onClose, initialCA = '', onSessionStart }: VolumeModalProps) {
   const { wallets }                                            = useWallets();
   const { sessions, addSession, updateSession, deleteSession } = useVolumeSessions();
 
-  const [tab, setTab]                 = useState<'start'|'sessions'>(initialCA ? 'start' : 'start');
+  const [tab, setTab]                 = useState<'start'|'sessions'>('start');
   const [tokenCA, setTokenCA]         = useState(initialCA);
-const [_initDone, setInitDone]      = useState(false);
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [preset, setPreset]           = useState<'organic'|'fast'|'turbo'>('organic');
   const [buySolRange, setBuySolRange] = useState('0.1–0.15');
   const [isStarting, setIsStarting]   = useState(false);
   const [stoppingId, setStoppingId]   = useState<string|null>(null);
 
-  // Force re-render when engine bumps stats
   const [tick, setTick] = useState(0);
   const onEngineUpdate = useCallback(() => setTick(t => t + 1), []);
 
   useEffect(() => {
     subscribe(onEngineUpdate);
-
-    // Resume any sessions that were running before modal was closed
     sessions.filter(s => s.status === 'running').forEach(session => {
       const sessionWallets = wallets.filter(w => session.wallets.includes(w.id));
       startLoops(session, sessionWallets);
     });
-
-    return () => {
-      unsubscribe(onEngineUpdate);
-      // NOTE: loops are NOT stopped on modal close — they keep running in the engine
-    };
+    return () => { unsubscribe(onEngineUpdate); };
   }, []); // eslint-disable-line
 
-  const volumeWallets = wallets.filter(w => w.type === 'volume');
+  const volumeWallets  = wallets.filter(w => w.type === 'volume');
   const activeSessions = sessions.filter(s => s.status !== 'stopping');
 
   const handleStart = async () => {
     if (!tokenCA || selectedWallets.length === 0) return;
     setIsStarting(true);
     await new Promise(r => setTimeout(r, 300));
-
     const session: VolumeSession = {
       id: crypto.randomUUID(), ca: tokenCA, preset,
       status: 'running', wallets: selectedWallets,
-      createdAt: Date.now(),
-      buySolAmount: 0,
-      buySolRange,
+      createdAt: Date.now(), buySolAmount: 0, buySolRange,
     };
     addSession(session);
-
-    const sessionWallets = wallets.filter(w => selectedWallets.includes(w.id));
-    startLoops(session, sessionWallets);
-
+    startLoops(session, wallets.filter(w => selectedWallets.includes(w.id)));
     setTokenCA(''); setSelectedWallets([]);
     setIsStarting(false); setTab('sessions');
+    onSessionStart?.();
   };
 
   const togglePause = (session: VolumeSession) => {
@@ -92,8 +109,7 @@ const [_initDone, setInitDone]      = useState(false);
   const handleStop = async (session: VolumeSession) => {
     setStoppingId(session.id);
     updateSession(session.id, { status: 'stopping' });
-    const sw = wallets.filter(w => session.wallets.includes(w.id));
-    await stopLoops(session, sw);
+    await stopLoops(session, wallets.filter(w => session.wallets.includes(w.id)));
     deleteSession(session.id);
     setStoppingId(null);
   };
@@ -109,16 +125,10 @@ const [_initDone, setInitDone]      = useState(false);
           onClick={e => e.stopPropagation()}>
           <div className="p-7">
 
+            {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-8 text-blue-400">
-                  <svg viewBox="0 0 64 48" fill="none" className="w-full h-full"><style>{`@keyframes cg{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.55)}}.cb{transform-box:fill-box;transform-origin:center;}`}</style>
-                  {[{x:2,h:22,y:14,g:true,d:'0s'},{x:12,h:16,y:18,g:false,d:'.25s'},{x:22,h:26,y:10,g:true,d:'.5s'},{x:32,h:14,y:20,g:false,d:'.1s'},{x:42,h:20,y:12,g:true,d:'.35s'},{x:52,h:18,y:16,g:false,d:'.6s'}].map((b,i)=>(
-                    <g key={i}><line x1={b.x+4} y1={10} x2={b.x+4} y2={38} stroke={b.g?'#22c55e':'#ef4444'} strokeWidth="1.5" opacity="0.4"/>
-                    <rect className="cb" x={b.x} y={b.y} width="8" height={b.h} rx="1.5" fill={b.g?'#22c55e':'#ef4444'} opacity="0.9" style={{animation:}}/></g>
-                  ))}
-                  </svg>
-                </div>
+                <VolumeHeaderIcon />
                 <h2 className="text-3xl font-mono font-bold text-blue-400">VOLUME</h2>
               </div>
               <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white">
@@ -126,6 +136,7 @@ const [_initDone, setInitDone]      = useState(false);
               </button>
             </div>
 
+            {/* Tabs */}
             <div className="flex gap-2 mb-6">
               {(['start','sessions'] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
@@ -206,15 +217,21 @@ const [_initDone, setInitDone]      = useState(false);
                             <button key={w.id} onClick={() => toggleWallet(w.id)}
                               className={cn('w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left',
                                 sel ? 'bg-blue-400/10 border border-blue-400/30' : 'hover:bg-white/5 border border-transparent')}>
-                              <div className={cn('w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all',
+                              <div className={cn('w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center',
                                 sel ? 'bg-blue-400 border-blue-400' : 'border-white/25')}>
-                                {sel && <svg className="w-2.5 h-2.5 text-black" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+                                {sel && (
+                                  <svg className="w-2.5 h-2.5 text-black" viewBox="0 0 10 10" fill="none">
+                                    <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                  </svg>
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="font-mono font-bold text-white text-xs">{w.name}</div>
                                 <div className="text-white/30 text-[10px]">{w.address.slice(0,12)}…</div>
                               </div>
-                              <div className={cn('text-xs font-mono', sel ? 'text-blue-400' : 'text-white/40')}>{w.balance.toFixed(3)} SOL</div>
+                              <div className={cn('text-xs font-mono', sel ? 'text-blue-400' : 'text-white/40')}>
+                                {w.balance.toFixed(3)} SOL
+                              </div>
                             </button>
                           );
                         })}
@@ -240,10 +257,10 @@ const [_initDone, setInitDone]      = useState(false);
                 {activeSessions.length === 0 ? (
                   <div className="p-10 text-center text-white/40">Нет активных сессий</div>
                 ) : activeSessions.map(session => {
-                  const s        = getStats(session.id); // reads from engine, not component state
-                  const elapsed  = Math.floor((Date.now() - s.startedAt) / 60000);
+                  const s       = getStats(session.id);
+                  const elapsed = Math.floor((Date.now() - s.startedAt) / 60000);
                   const stopping = stoppingId === session.id;
-                  const range    = session.buySolRange || String(session.buySolAmount);
+                  const range   = session.buySolRange || String(session.buySolAmount);
                   return (
                     <div key={session.id} className="p-4 rounded-xl border border-white/10 bg-white/3">
                       <div className="flex items-start justify-between">
@@ -259,8 +276,8 @@ const [_initDone, setInitDone]      = useState(false);
                               {session.preset.toUpperCase()}
                             </span>
                             <span className={cn('text-xs px-2 py-0.5 rounded-full',
-                              stopping                    ? 'bg-orange-500/20 text-orange-400' :
-                              session.status==='running'  ? 'bg-blue-400/20 text-blue-400' :
+                              stopping                   ? 'bg-orange-500/20 text-orange-400' :
+                              session.status==='running' ? 'bg-blue-400/20 text-blue-400' :
                               'bg-yellow-500/20 text-yellow-400')}>
                               {stopping ? '⏳ SELLING…' : session.status==='running' ? '🟢 RUNNING' : '🟡 PAUSED'}
                             </span>
@@ -291,7 +308,6 @@ const [_initDone, setInitDone]      = useState(false);
                     </div>
                   );
                 })}
-
                 {activeSessions.length > 0 && (
                   <div className="flex items-center gap-2 px-3 py-2 bg-blue-400/10 rounded-xl text-blue-400 text-xs">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -307,8 +323,3 @@ const [_initDone, setInitDone]      = useState(false);
     </>
   );
 }
-
-
-
-
-
