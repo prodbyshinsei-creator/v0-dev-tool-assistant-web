@@ -1,30 +1,32 @@
 'use client';
 import { useEffect, useRef } from 'react';
 
-type Theme = 'crimson' | 'void' | 'abyss' | 'solana';
+type Theme = 'crimson'|'void'|'abyss'|'solana';
 
-const THEME_PALETTES: Record<Theme, [number,number,number][]> = {
-  crimson: [[0,0,0],[0.15,0,0],[0.45,0.03,0.03],[0.6,0.05,0.05]],
-  void:    [[0.01,0.01,0.015],[0.05,0.05,0.07],[0.12,0.12,0.16],[0.2,0.2,0.25]],
-  abyss:   [[0,0,0.02],[0,0.03,0.14],[0.02,0.06,0.28],[0.03,0.1,0.4]],
-  solana:  [[0.01,0,0.04],[0.04,0,0.14],[0.06,0.18,0.1],[0.08,0.25,0.15]],
+// Each theme: 4 color stops [r,g,b] normalized 0-1
+const PALETTES: Record<Theme,[number,number,number][]> = {
+  crimson: [[0,0,0],[0.12,0,0],[0.35,0.02,0.02],[0.5,0.04,0.04]],
+  void:    [[0.01,0.01,0.015],[0.04,0.04,0.06],[0.1,0.1,0.14],[0.18,0.18,0.22]],
+  abyss:   [[0,0,0.02],[0,0.02,0.12],[0.01,0.05,0.24],[0.02,0.08,0.35]],
+  // Solana: dark purple → dark green (brand: #9945FF, #14F195)
+  solana:  [[0.01,0,0.04],[0.04,0,0.14],[0.01,0.07,0.05],[0.02,0.12,0.07]],
 };
 
 interface Props { theme?: Theme }
 
-export function InteractiveShaderBackground({ theme = 'crimson' }: Props) {
+export function InteractiveShaderBackground({ theme='crimson' }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef  = useRef({ x:0.5, y:0.5 });
+  const mouseRef  = useRef({x:0.5,y:0.5});
   const animRef   = useRef<number>(0);
   const themeRef  = useRef(theme);
-  useEffect(() => { themeRef.current = theme; }, [theme]);
+  useEffect(()=>{ themeRef.current=theme; },[theme]);
 
-  useEffect(() => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const gl = canvas.getContext('webgl'); if (!gl) return;
+  useEffect(()=>{
+    const canvas=canvasRef.current; if(!canvas) return;
+    const gl=canvas.getContext('webgl'); if(!gl) return;
 
-    const vs = `attribute vec2 a;void main(){gl_Position=vec4(a,0,1);}`;
-    const fs = `
+    const vs=`attribute vec2 a;void main(){gl_Position=vec4(a,0,1);}`;
+    const fs=`
       precision mediump float;
       uniform vec2 uR,uM; uniform float uT;
       uniform vec3 c1,c2,c3,c4;
@@ -64,7 +66,7 @@ export function InteractiveShaderBackground({ theme = 'crimson' }: Props) {
     const start=performance.now();
     const draw=()=>{
       const t=(performance.now()-start)/1000;
-      const pal=THEME_PALETTES[themeRef.current];
+      const pal=PALETTES[themeRef.current];
       gl.uniform2f(uR,canvas.width,canvas.height);
       gl.uniform2f(uM,mouseRef.current.x,mouseRef.current.y);
       gl.uniform1f(uT,t);
