@@ -12,7 +12,7 @@ import {
   subscribe, unsubscribe,
 } from '@/lib/volume-engine';
 
-interface VolumeModalProps { onClose: () => void; }
+interface VolumeModalProps { onClose: () => void; initialCA?: string; onSessionStart?: () => void; }
 
 const SOL_PRESETS = ['0.005–0.1','0.1–0.15','0.15–0.25','0.25–0.5','0.5–1.0','1–5'];
 
@@ -22,12 +22,13 @@ const PRESETS = [
   { key: 'turbo',   icon: '🔥', label: 'TURBO',   delay: '2–5s',   txh: '20–30' },
 ] as const;
 
-export function VolumeModal({ onClose }: VolumeModalProps) {
+export function VolumeModal({ onClose, initialCA = '', onSessionStart }: VolumeModalProps) {
   const { wallets }                                            = useWallets();
   const { sessions, addSession, updateSession, deleteSession } = useVolumeSessions();
 
-  const [tab, setTab]                 = useState<'start'|'sessions'>('start');
-  const [tokenCA, setTokenCA]         = useState('');
+  const [tab, setTab]                 = useState<'start'|'sessions'>(initialCA ? 'start' : 'start');
+  const [tokenCA, setTokenCA]         = useState(initialCA);
+const [_initDone, setInitDone]      = useState(false);
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [preset, setPreset]           = useState<'organic'|'fast'|'turbo'>('organic');
   const [buySolRange, setBuySolRange] = useState('0.1–0.15');
@@ -299,4 +300,6 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
     </>
   );
 }
+
+
 
