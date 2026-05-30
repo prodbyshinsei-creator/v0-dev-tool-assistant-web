@@ -234,17 +234,29 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
                 {/* Launch Type Selector */}
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">Launch Type</Label>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    {(['pump','custom'] as const).map(lt => (
-                      <button key={lt} onClick={() => { setLaunchType(lt); setMintPrivateKey(''); setMintPreviewCA(''); }}
-                        className={cn('p-4 rounded-xl border-2 text-center transition-all',
-                          launchType===lt ? 'border-red-500 bg-red-500/10' : 'border-white/10 hover:border-white/25')}>
-                        <div className="text-2xl mb-1">{lt==='pump' ? '💎' : '✨'}</div>
-                        <div className="font-bold text-white text-sm">{lt==='pump' ? 'Default Launch' : 'Custom CA'}</div>
-                        <div className="text-xs text-white/40 mt-0.5">
-                          {lt==='pump' ? 'with pump CA' : 'Your vanity keypair'}
+                  {/* Launch type — compact with tooltip */}
+                  <div className="flex gap-2 mb-3">
+                    {([
+                      { id:'pump',   icon:'💎', label:'Default Launch', sub:'with pump CA',      tip:'Uses a pre-generated address ending in "pump". Automatically taken from the pool.' },
+                      { id:'custom', icon:'✨', label:'Custom CA',      sub:'Your vanity keypair', tip:'Paste the private key of any pre-generated vanity mint keypair. The token will launch with that exact address.' },
+                    ] as const).map(lt => (
+                      <div key={lt.id} className="relative flex-1 group">
+                        <button onClick={() => { setLaunchType(lt.id as any); setMintPrivateKey(''); setMintPreviewCA(''); }}
+                          className={cn('w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all',
+                            launchType===lt.id ? 'border-red-500 bg-red-500/10' : 'border-white/10 hover:border-white/20')}>
+                          <span className="text-lg">{lt.icon}</span>
+                          <div className="text-left flex-1 min-w-0">
+                            <div className="font-bold text-white text-xs">{lt.label}</div>
+                            <div className="text-white/40 text-[10px]">{lt.sub}</div>
+                          </div>
+                          {/* ? tooltip */}
+                          <div className="w-4 h-4 rounded-full border border-white/20 text-white/30 text-[9px] flex items-center justify-center flex-shrink-0 cursor-help hover:border-white/50 hover:text-white/60 transition-colors">?</div>
+                        </button>
+                        {/* Tooltip popup */}
+                        <div className="absolute bottom-full mb-2 left-0 right-0 bg-black border border-white/20 rounded-xl p-3 text-xs text-white/70 z-10 hidden group-hover:block shadow-xl leading-relaxed pointer-events-none">
+                          {lt.tip}
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
 
@@ -302,25 +314,19 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">Dev Wallet</Label>
                   {devWallets.length === 0 ? (
-                    <div className="p-4 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">
+                    <div className="p-3 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">
                       Создай Dev Wallet в разделе WALLETS
                     </div>
                   ) : (
-                    <div className="space-y-2 border border-white/10 rounded-xl p-3 max-h-36 overflow-y-auto">
+                    <select value={selectedWallet||''} onChange={e => setSelectedWallet(e.target.value)}
+                      className="w-full bg-white/5 border border-white/15 text-white rounded-xl px-3 h-11 text-sm focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer">
+                      <option value="" disabled className="bg-black">— Select wallet —</option>
                       {devWallets.map(w => (
-                        <button key={w.id} onClick={() => setSelectedWallet(w.id)}
-                          className={cn('w-full flex items-center justify-between p-3 rounded-lg transition-all',
-                            selectedWallet === w.id
-                              ? 'border-2 border-red-500 bg-red-500/10'
-                              : 'border border-white/10 hover:border-white/25')}>
-                          <div className="text-left">
-                            <div className="font-mono font-bold text-white text-sm">{w.name}</div>
-                            <div className="text-xs text-white/40">{w.address.slice(0,14)}… · {w.balance.toFixed(4)} SOL</div>
-                          </div>
-                          {selectedWallet === w.id && <Check className="w-4 h-4 text-red-500" />}
-                        </button>
+                        <option key={w.id} value={w.id} className="bg-black">
+                          {w.name}  ·  {w.address.slice(0,10)}…  ·  {w.balance.toFixed(4)} SOL
+                        </option>
                       ))}
-                    </div>
+                    </select>
                   )}
                 </div>
 
@@ -537,6 +543,7 @@ export function VampModal({ onClose, onOpenPortfolio }: VampModalProps) {
     </>
   );
 }
+
 
 
 
