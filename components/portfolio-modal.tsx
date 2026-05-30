@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { usePortfolio, useWallets, useTrades, addTradeRecord, TradeRecord } from '@/hooks/storage';
 
-interface PortfolioModalProps { onClose: () => void; }
+interface PortfolioModalProps { onClose: () => void; onLaunchVolume?: (ca: string) => void; }
 
 const fmt = (v: number, pre = '$') => {
   if (!v) return '—';
@@ -33,7 +33,7 @@ const timeAgo = (ts: number) => {
 
 const TAB_COLORS = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#a855f7','#06b6d4'];
 
-export function PortfolioModal({ onClose }: PortfolioModalProps) {
+export function PortfolioModal({ onClose, onLaunchVolume }: PortfolioModalProps) {
   const { tokens, updateToken } = usePortfolio();
   const { wallets }             = useWallets();
   const { trades, addTrade }    = useTrades();
@@ -287,11 +287,20 @@ export function PortfolioModal({ onClose }: PortfolioModalProps) {
                 </div>
               </div>
 
-              <a href={`https://gmgn.ai/sol/token/${selectedToken.ca}`} target="_blank" rel="noopener noreferrer"
-                className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white font-bold text-sm transition-colors"
-                style={{background:'#0d9488'}}>
-                <ExternalLink className="w-4 h-4" /> View on GMGN
-              </a>
+              <div className="mt-4 flex gap-3">
+                <a href={`https://gmgn.ai/sol/token/${selectedToken.ca}`} target="_blank" rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm transition-colors"
+                  style={{background:'#0d9488'}}>
+                  <ExternalLink className="w-4 h-4" /> GMGN
+                </a>
+                {onLaunchVolume && (
+                  <button
+                    onClick={() => { onClose(); setTimeout(() => onLaunchVolume!(selectedToken.ca), 150); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-black font-bold text-sm bg-blue-400 hover:bg-blue-300 transition-colors">
+                    ⚡ Launch Volume Bot
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -572,3 +581,4 @@ export function PortfolioModal({ onClose }: PortfolioModalProps) {
     </>
   );
 }
+
