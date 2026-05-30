@@ -57,14 +57,14 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
       <header className="relative z-10 px-8 py-6 flex items-center border-b border-white/5">
         <div className="flex items-center gap-3">
           <img src="/vamp-fangs-silver.png" alt="" className="w-7 h-7" style={{ mixBlendMode: 'screen' }} />
-          <span className="text-lg font-mono font-black text-white tracking-widest">DEV TOOL ASSISTANT</span>
+          <span className="text-lg font-mono font-black text-white tracking-widest">VEXOR</span>
         </div>
       </header>
 
       {/* Hero */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 -mt-8">
         <div className="mb-8 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-white/50 text-xs font-mono tracking-widest">
-          Advanced Solana Dev Tools
+          Advanced Solana Dev Tools — VEXOR
         </div>
 
         <h1 className="text-6xl md:text-8xl font-black text-white leading-tight mb-4 select-none">
@@ -118,3 +118,4 @@ export function LandingPage({ onLogin, onRegister }: LandingPageProps) {
     </div>
   );
 }
+
