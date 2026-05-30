@@ -111,7 +111,14 @@ const [_initDone, setInitDone]      = useState(false);
 
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <img src="/vamp-blood.png" alt="" className="w-9 h-9" style={{ mixBlendMode: 'screen' }} />
+                <div className="w-9 h-8 text-blue-400">
+                  <svg viewBox="0 0 64 48" fill="none" className="w-full h-full"><style>{`@keyframes cg{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.55)}}.cb{transform-box:fill-box;transform-origin:center;}`}</style>
+                  {[{x:2,h:22,y:14,g:true,d:'0s'},{x:12,h:16,y:18,g:false,d:'.25s'},{x:22,h:26,y:10,g:true,d:'.5s'},{x:32,h:14,y:20,g:false,d:'.1s'},{x:42,h:20,y:12,g:true,d:'.35s'},{x:52,h:18,y:16,g:false,d:'.6s'}].map((b,i)=>(
+                    <g key={i}><line x1={b.x+4} y1={10} x2={b.x+4} y2={38} stroke={b.g?'#22c55e':'#ef4444'} strokeWidth="1.5" opacity="0.4"/>
+                    <rect className="cb" x={b.x} y={b.y} width="8" height={b.h} rx="1.5" fill={b.g?'#22c55e':'#ef4444'} opacity="0.9" style={{animation:}}/></g>
+                  ))}
+                  </svg>
+                </div>
                 <h2 className="text-3xl font-mono font-bold text-blue-400">VOLUME</h2>
               </div>
               <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white">
@@ -300,6 +307,8 @@ const [_initDone, setInitDone]      = useState(false);
     </>
   );
 }
+
+
 
 
 
