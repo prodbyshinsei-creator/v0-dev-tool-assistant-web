@@ -141,15 +141,16 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
 
                 <div>
                   <Label className="text-base font-semibold text-white/90 mb-2 block">Speed</Label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="flex gap-2">
                     {PRESETS.map(p => (
                       <button key={p.key} onClick={() => setPreset(p.key)}
-                        className={cn('p-4 rounded-xl border-2 text-center transition-all',
-                          preset===p.key ? 'border-blue-400 bg-blue-400/10' : 'border-white/10 hover:border-white/25')}>
-                        <div className="text-3xl mb-1">{p.icon}</div>
-                        <div className="font-bold text-white text-sm">{p.label}</div>
-                        <div className="text-xs text-white/50 mt-0.5">{p.delay}</div>
-                        <div className="text-xs text-blue-400/80 mt-1">~{p.txh} tx/h</div>
+                        className={cn('flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all',
+                          preset===p.key ? 'border-blue-400 bg-blue-400/10' : 'border-white/10 hover:border-white/20')}>
+                        <span className="text-lg flex-shrink-0">{p.icon}</span>
+                        <div className="text-left min-w-0">
+                          <div className="font-bold text-white text-xs">{p.label}</div>
+                          <div className="text-white/40 text-[10px]">{p.delay} · ~{p.txh}/h</div>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -184,25 +185,35 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
                     Volume Wallets ({volumeWallets.length})
                   </Label>
                   {volumeWallets.length === 0 ? (
-                    <div className="p-4 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">
+                    <div className="p-3 text-center text-white/40 border border-dashed border-white/15 rounded-xl text-sm">
                       Создай Volume кошельки в WALLETS
                     </div>
                   ) : (
-                    <div className="space-y-2 border border-white/10 rounded-xl p-3 max-h-44 overflow-y-auto">
-                      {volumeWallets.map(w => (
-                        <label key={w.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 cursor-pointer">
-                          <input type="checkbox" checked={selectedWallets.includes(w.id)}
-                            onChange={() => toggleWallet(w.id)} className="w-4 h-4 accent-blue-400" />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-mono font-bold text-white text-sm">{w.name}</div>
-                            <div className="text-xs text-white/40">{w.address.slice(0,14)}…</div>
-                          </div>
-                          <div className="text-sm text-white/50 font-mono">{w.balance.toFixed(4)} SOL</div>
-                        </label>
-                      ))}
+                    <div className="space-y-1.5 border border-white/10 rounded-xl p-2">
+                      <p className="text-xs text-white/40 px-1 pb-1">Select wallets (check = active)</p>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {volumeWallets.map(w => {
+                          const sel = selectedWallets.includes(w.id);
+                          return (
+                            <button key={w.id} onClick={() => toggleWallet(w.id)}
+                              className={cn('w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left',
+                                sel ? 'bg-blue-400/10 border border-blue-400/30' : 'hover:bg-white/5 border border-transparent')}>
+                              <div className={cn('w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all',
+                                sel ? 'bg-blue-400 border-blue-400' : 'border-white/25')}>
+                                {sel && <svg className="w-2.5 h-2.5 text-black" viewBox="0 0 10 10" fill="none"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-mono font-bold text-white text-xs">{w.name}</div>
+                                <div className="text-white/30 text-[10px]">{w.address.slice(0,12)}…</div>
+                              </div>
+                              <div className={cn('text-xs font-mono', sel ? 'text-blue-400' : 'text-white/40')}>{w.balance.toFixed(3)} SOL</div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
-                  <p className="text-xs text-white/40 mt-1">{selectedWallets.length} selected</p>
+                  <p className="text-xs text-white/40 mt-1">{selectedWallets.length} of {volumeWallets.length} selected</p>
                 </div>
 
                 <Button onClick={handleStart}
@@ -288,3 +299,4 @@ export function VolumeModal({ onClose }: VolumeModalProps) {
     </>
   );
 }
+
