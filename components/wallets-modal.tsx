@@ -140,7 +140,15 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <img src="/vamp-fangs-silver.png" alt="" className="w-9 h-9" style={{ mixBlendMode: 'screen' }} />
+                <div className="w-10 h-9">
+                  <svg viewBox="0 0 64 52" fill="none" className="w-full h-full"><style>{`@keyframes fl{0%,100%{transform:rotate(0deg) translateY(0)}50%{transform:rotate(-14deg) translateY(-4px)}}@keyframes fr{0%,100%{transform:rotate(0deg) translateY(0)}50%{transform:rotate(14deg) translateY(-4px)}}@keyframes fc{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}.wcl{transform-box:fill-box;transform-origin:center bottom;animation:fl 2.4s ease-in-out infinite}.wcr{transform-box:fill-box;transform-origin:center bottom;animation:fr 2.4s ease-in-out .1s infinite}.wcc{transform-box:fill-box;transform-origin:center bottom;animation:fc 2.4s ease-in-out infinite}`}</style>
+                  <rect className="wcl" x="4" y="14" width="38" height="26" rx="5" fill="#3b82f6" opacity="0.7"/>
+                  <rect className="wcr" x="22" y="14" width="38" height="26" rx="5" fill="#22c55e" opacity="0.7"/>
+                  <rect className="wcc" x="13" y="10" width="38" height="28" rx="5" fill="#f8f8f8" opacity="0.95"/>
+                  <line x1="13" y1="19" x2="51" y2="19" stroke="#1a1a1a" strokeWidth="4" opacity="0.12"/>
+                  <rect x="17" y="13" width="8" height="6" rx="1.5" fill="#f59e0b" opacity="0.8"/>
+                  </svg>
+                </div>
                 <h2 className="text-3xl font-mono font-bold text-green-400">WALLETS</h2>
               </div>
               <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/60 hover:text-white">
@@ -345,3 +353,5 @@ export function WalletsModal({ onClose }: WalletsModalProps) {
     </>
   );
 }
+
+
