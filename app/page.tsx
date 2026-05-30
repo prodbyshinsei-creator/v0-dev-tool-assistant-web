@@ -218,9 +218,9 @@ export default function Home() {
     <div className="h-[100dvh] flex flex-col overflow-hidden">
       <InteractiveShaderBackground theme={theme} />
 
-      {/* Header — скрыт когда открыта модалка на мобиле */}
+      {/* Header */}
       <div className={cn(
-        'relative z-[200] border-b border-white/8 bg-black/90 backdrop-blur-xl flex-shrink-0 transition-all duration-200',
+        'relative z-[200] border-b border-white/8 bg-black/90 backdrop-blur-xl flex-shrink-0',
         modalOpen ? 'hidden md:flex' : 'flex'
       )}>
         <div className="w-full px-4 md:px-6 py-3 flex items-center justify-between">
@@ -304,66 +304,80 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Dashboard Grid ─────────────────────────────────────────── */}
-      <div className={cn(
-        'relative z-10 flex-1 p-3 md:p-4 overflow-hidden',
-        // Mobile: vertical stack
-        'flex flex-col gap-3',
-        // Desktop: CSS grid  
-        'md:grid md:flex-none md:gap-4',
-        'md:grid-cols-[1.2fr_1fr_1fr]',
-        'md:grid-rows-[1fr_0.65fr]'
-      )}>
+      {/* ── DESKTOP layout (md+): CSS Grid filling all remaining height ── */}
+      <div className="relative z-10 flex-1 overflow-hidden hidden md:grid md:p-4 md:gap-4"
+        style={{ gridTemplateColumns: '1.2fr 1fr', gridTemplateRows: '1fr 0.65fr' }}>
 
-        {/* VAMP — big left */}
+        {/* VAMP — left column, full height */}
         <button onClick={()=>setActiveModal('vamp')}
-          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-red-500/40 hover:bg-red-500/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center
-            min-h-[150px] md:min-h-0
-            md:row-span-2 md:col-span-1">
+          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-red-500/40 hover:bg-red-500/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center row-span-2">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-red-500/8 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"/>
-          <BloodDrop className="w-14 h-16 md:w-20 md:h-24 mb-3 transition-all" style={{color:'#ef4444'}}/>
-          <h2 className="text-4xl md:text-6xl font-black text-white mb-1 group-hover:text-red-50 transition-colors">VAMP</h2>
-          <p className="text-white/40 text-xs md:text-sm group-hover:text-white/60 transition-colors">Launch Tokens</p>
+          <BloodDrop className="w-20 h-24 mb-4" style={{color:'#ef4444'}}/>
+          <h2 className="text-6xl font-black text-white mb-2 group-hover:text-red-50 transition-colors">VAMP</h2>
+          <p className="text-white/40 text-sm group-hover:text-white/60 transition-colors">Launch Tokens</p>
         </button>
 
-        {/* VOLUME + WALLETS — side by side on mobile AND desktop top-right */}
-        <button onClick={()=>setActiveModal('volume')}
-          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-blue-400/40 hover:bg-blue-400/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center
-            flex-1 md:flex-none min-h-[130px] md:min-h-0
-            md:col-start-2 md:row-start-1">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-blue-400/6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
-          <VolumeAnim size="md"/>
-          <h3 className="text-2xl md:text-3xl font-black text-white mt-2 mb-0.5 group-hover:text-blue-50 transition-colors">VOLUME</h3>
-          <p className="text-white/40 text-xs group-hover:text-white/60 transition-colors">Trading Bot</p>
-        </button>
+        {/* VOLUME + WALLETS — top right, side by side */}
+        <div className="flex gap-4">
+          <button onClick={()=>setActiveModal('volume')}
+            className="group flex-1 rounded-3xl bg-black/50 border border-white/10 hover:border-blue-400/40 hover:bg-blue-400/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-blue-400/6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
+            <VolumeAnim size="md"/>
+            <h3 className="text-3xl font-black text-white mt-2 mb-1 group-hover:text-blue-50 transition-colors">VOLUME</h3>
+            <p className="text-white/40 text-xs group-hover:text-white/60 transition-colors">Trading Bot</p>
+          </button>
+          <button onClick={()=>setActiveModal('wallets')}
+            className="group flex-1 rounded-3xl bg-black/50 border border-white/10 hover:border-green-400/40 hover:bg-green-400/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-green-400/6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
+            <WalletsAnim size="md"/>
+            <h3 className="text-3xl font-black text-white mt-2 mb-1 group-hover:text-green-50 transition-colors">WALLETS</h3>
+            <p className="text-white/40 text-xs group-hover:text-white/60 transition-colors">Manage Keys</p>
+          </button>
+        </div>
 
-        {/* VOLUME + WALLETS share a row on mobile */}
-        <button onClick={()=>setActiveModal('wallets')}
-          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-green-400/40 hover:bg-green-400/5 transition-all duration-300 overflow-hidden relative flex flex-col items-center justify-center
-            flex-1 md:flex-none min-h-[130px] md:min-h-0
-            md:col-start-3 md:row-start-1">
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-green-400/6 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
-          <WalletsAnim size="md"/>
-          <h3 className="text-2xl md:text-3xl font-black text-white mt-2 mb-0.5 group-hover:text-green-50 transition-colors">WALLETS</h3>
-          <p className="text-white/40 text-xs group-hover:text-white/60 transition-colors">Manage Keys</p>
-        </button>
-
-        {/* PORTFOLIO — bottom */}
+        {/* PORTFOLIO — bottom right */}
         <button onClick={()=>setActiveModal('portfolio')}
-          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-white/25 hover:bg-white/3 transition-all duration-300 overflow-hidden relative flex items-center justify-center gap-6 px-6
-            min-h-[100px] md:min-h-0
-            md:col-start-2 md:col-span-2 md:row-start-2">
+          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-white/25 hover:bg-white/3 transition-all duration-300 overflow-hidden relative flex items-center justify-center gap-8 px-8">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white/3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"/>
           <PortfolioAnim size="lg"/>
           <div className="text-left">
-            <h3 className="text-3xl md:text-4xl font-black text-white mb-0.5">PORTFOLIO</h3>
-            <p className="text-white/40 text-xs md:text-sm group-hover:text-white/60 transition-colors">Track Tokens & Positions</p>
+            <h3 className="text-4xl font-black text-white mb-1">PORTFOLIO</h3>
+            <p className="text-white/40 text-sm group-hover:text-white/60 transition-colors">Track Tokens & Positions</p>
           </div>
         </button>
       </div>
 
-      {/* Mobile: VOLUME + WALLETS side by side */}
-      {/* ↑ handled inline with flex-1 above */}
+      {/* ── MOBILE layout: vertical flex stack ── */}
+      <div className="relative z-10 flex-1 overflow-y-auto flex flex-col gap-3 p-3 md:hidden">
+        <button onClick={()=>setActiveModal('vamp')}
+          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-red-500/40 transition-all overflow-hidden relative flex flex-col items-center justify-center min-h-[180px]">
+          <BloodDrop className="w-14 h-16 mb-3" style={{color:'#ef4444'}}/>
+          <h2 className="text-4xl font-black text-white mb-1">VAMP</h2>
+          <p className="text-white/40 text-sm">Launch Tokens</p>
+        </button>
+        <div className="flex gap-3 min-h-[140px]">
+          <button onClick={()=>setActiveModal('volume')}
+            className="group flex-1 rounded-3xl bg-black/50 border border-white/10 hover:border-blue-400/40 transition-all overflow-hidden relative flex flex-col items-center justify-center">
+            <VolumeAnim size="md"/>
+            <h3 className="text-2xl font-black text-white mt-2 mb-0.5">VOLUME</h3>
+            <p className="text-white/40 text-xs">Trading Bot</p>
+          </button>
+          <button onClick={()=>setActiveModal('wallets')}
+            className="group flex-1 rounded-3xl bg-black/50 border border-white/10 hover:border-green-400/40 transition-all overflow-hidden relative flex flex-col items-center justify-center">
+            <WalletsAnim size="md"/>
+            <h3 className="text-2xl font-black text-white mt-2 mb-0.5">WALLETS</h3>
+            <p className="text-white/40 text-xs">Manage Keys</p>
+          </button>
+        </div>
+        <button onClick={()=>setActiveModal('portfolio')}
+          className="group rounded-3xl bg-black/50 border border-white/10 hover:border-white/25 transition-all overflow-hidden relative flex items-center justify-center gap-5 px-5 min-h-[110px]">
+          <PortfolioAnim size="md"/>
+          <div className="text-left">
+            <h3 className="text-3xl font-black text-white mb-0.5">PORTFOLIO</h3>
+            <p className="text-white/40 text-xs">Track Tokens & Positions</p>
+          </div>
+        </button>
+      </div>
 
       <Footer theme={theme} setTheme={setTheme}/>
 
