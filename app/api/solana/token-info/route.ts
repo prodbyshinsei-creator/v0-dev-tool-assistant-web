@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   let name='',symbol='',description='',image='',website='',twitter='',telegram='';
   let price=0,marketCap=0,liquidity=0,volume24h=0,holders=0;
 
-  // All 3 in parallel — pump.fun direct (fastest ~200ms), DexScreener, GMGN
+  // All 3 in parallel
   const [pumpR, dexR, gmgnR] = await Promise.allSettled([
     fetch(`https://frontend-api.pump.fun/coins/${ca}`, { headers: HDR, signal: AbortSignal.timeout(4000) })
       .then(r => r.ok ? r.json() : null).catch(() => null),
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       .then(r => r.ok ? r.json() : null).catch(() => null),
   ]);
 
-  // pump.fun — best for new tokens and has clean socials
+  // pump.fun — best for new tokens
   if (pumpR.status === 'fulfilled' && pumpR.value) {
     const p = pumpR.value;
     name        = p.name        || '';
@@ -28,16 +28,14 @@ export async function GET(req: NextRequest) {
     image       = p.image_uri   || p.image || '';
     description = p.description || '';
     website     = p.website     || '';
-    // pump.fun returns twitter/telegram as full URLs or handles
     twitter     = p.twitter     || '';
     telegram    = p.telegram    || '';
     marketCap   = p.usd_market_cap || 0;
-    // Normalize: if twitter is just a handle add URL
     if (twitter && !twitter.startsWith('http')) twitter = `https://x.com/${twitter.replace('@','')}`;
     if (telegram && !telegram.startsWith('http')) telegram = `https://t.me/${telegram.replace('@','')}`;
   }
 
-  // DexScreener — best for price, liquidity, socials for traded tokens
+  // DexScreener — price, liquidity
   if (dexR.status === 'fulfilled' && dexR.value) {
     const pair = dexR.value.pairs?.[0];
     if (pair) {
@@ -58,7 +56,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // GMGN — best for description, holder count
+  // GMGN — description, holders
   if (gmgnR.status === 'fulfilled' && gmgnR.value) {
     const tk = gmgnR.value?.data?.token || {};
     if (!name)        name        = tk.name        || '';
@@ -73,8 +71,9 @@ export async function GET(req: NextRequest) {
     holders = tk.holder_count || 0;
   }
 
-  // Helius fallback only if still no name
-  if (!name || !image) {
+  // Helius + IPFS fallback — runs when description is missing (not just when name/image missing)
+  // This is key: pump.fun may have name+image but IPFS JSON has the real description
+  if (!name || !image || !description) {
     try {
       const ar = await fetch(HELIUS, {
         method:'POST', headers:{'Content-Type':'application/json'},
@@ -88,6 +87,7 @@ export async function GET(req: NextRequest) {
         if (!symbol) symbol = meta.symbol || '';
         if (!image && files[0]) image = files[0].uri || files[0].cdn_uri || '';
         const jsonUri = content.json_uri || '';
+        // Fetch IPFS JSON if we're missing description or socials
         if (jsonUri && (!description || !twitter || !telegram)) {
           const gateways = [jsonUri];
           const hash = jsonUri.split('ipfs/').pop();
